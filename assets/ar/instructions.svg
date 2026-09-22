@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_圖層_1" data-name="圖層_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 240 400">
+  <!-- Generator: Adobe Illustrator 29.4.0, SVG Export Plug-In . SVG Version: 2.1.0 Build 152)  -->
+  <defs>
+    <style>
+      .st0 {
+        font-family: Arial-BoldMT, Arial;
+        font-size: 14px;
+        font-weight: 700;
+        isolation: isolate;
+      }
+
+      .st0, .st1, .st2 {
+        fill: #fff;
+      }
+
+      .st3 {
+        fill: #231815;
+      }
+
+      .st4 {
+        fill: none;
+      }
+
+      .st4, .st5, .st6 {
+        stroke-width: 3px;
+      }
+
+      .st4, .st6 {
+        stroke: #a59d82;
+      }
+
+      .st7 {
+        fill: #00a0e9;
+      }
+
+      .st8 {
+        fill: #ff0038;
+      }
+
+      .st2 {
+        stroke-width: 2px;
+      }
+
+      .st2, .st5 {
+        stroke: #695a42;
+      }
+
+      .st5 {
+        fill: #949495;
+      }
+
+      .st6 {
+        fill: #b6b7b9;
+        stroke-linejoin: round;
+      }
+    </style>
+  </defs>
+  <rect class="st5" x="20" y="14" width="200" height="372" rx="26" ry="26"/>
+  <rect class="st3" x="32" y="42" width="176" height="316" rx="10" ry="10"/>
+  <path class="st6" d="M120,150l44,26v52l-44,26-44-26v-52l44-26Z"/>
+  <path class="st4" d="M120,254v-52M120,202l-44-26M120,202l44-26"/>
+  <path class="st1" d="M57,320h60c7.2,0,13,5.8,13,13h0c0,7.2-5.8,13-13,13h-60c-7.2,0-13-5.8-13-13h0c0-7.2,5.8-13,13-13Z"/>
+  <circle class="st8" cx="52" cy="306" r="11"/>
+  <text class="st0" transform="translate(48.1 311)"><tspan x="0" y="0">1</tspan></text>
+  <path class="st7" d="M163,320h22c7.2,0,13,5.8,13,13h0c0,7.2-5.8,13-13,13h-22c-7.2,0-13-5.8-13-13h0c0-7.2,5.8-13,13-13Z"/>
+  <circle class="st8" cx="196" cy="306" r="11"/>
+  <text class="st0" transform="translate(192.1 311)"><tspan x="0" y="0">2</tspan></text>
+  <path class="st2" d="M162,54h24c6.6,0,12,5.4,12,12h0c0,6.6-5.4,12-12,12h-24c-6.6,0-12-5.4-12-12h0c0-6.6,5.4-12,12-12Z"/>
+  <circle class="st8" cx="196" cy="92" r="11"/>
+  <text class="st0" transform="translate(192.1 97)"><tspan x="0" y="0">3</tspan></text>
+  <rect x="179.2" y="64.5" width="14.6" height="2.9" transform="translate(252.5 -120.5) rotate(90)"/>
+  <rect x="179.2" y="64.5" width="14.6" height="2.9" transform="translate(373.1 132) rotate(180)"/>
+</svg>

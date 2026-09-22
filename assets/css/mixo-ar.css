@@ -1,0 +1,613 @@
+/*
+  The `/{locale}/ar/` viewer: a full-screen page, written for a phone first.
+
+  Its own stylesheet rather than a section of `mixo-static.css`, because it shares nothing with
+  the rest of the site but the palette. There is no header, no footer, no column and no scroll:
+  the model is the page, and everything else floats on top of it.
+
+  The old site's page was the same shape - a flat `index.html` with the viewer filling the
+  viewport - in Bootstrap, from a CDN, on an origin that also serves the admin. This is that
+  layout without the dependency.
+*/
+
+:root {
+  --ar-ink: #695A42;
+  --ar-paper: #F3F1EA;
+  --ar-stage: #e9e9e9;
+  --ar-card: #ffffff;
+  --ar-sheet-bg: #695A42;
+  --ar-sheet-ink: #1f1f1f;
+  --ar-sheet-card: #F3F1EA;
+  --ar-sheet-card-ink: #695A42;
+  --ar-glass-bg: rgba(255, 255, 255, 0.7);
+  --ar-glass-card: rgba(255, 255, 255, 0.52);
+  --ar-glass-line: rgba(255, 255, 255, 0.5);
+  --ar-glass-shadow: rgba(0, 0, 0, 0.14);
+  --ar-glass-blur: 20px;
+  --ar-line: #d8d8d8;
+  --ar-gold: #5A6942;
+  --ar-close-bg: #dddddd;
+  --ar-close-ink: #000000;
+  --ar-close-line: #9e9e9e;
+  /* The old AR page's blue, kept: `rgb(0,151,232)` on the button and the glow under it. */
+  --ar-blue: #0097e8;
+  --ar-blue-glow: rgba(20, 173, 255, 0.83);
+  --ar-red: #ff0038;
+  --ar-touch: 44px;
+  --ar-font: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", "Noto Sans TC",
+    "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--ar-stage);
+  color: var(--ar-ink);
+  font-family: var(--ar-font);
+  /* A page whose content is dragged rather than scrolled. Without this a drag past the top of
+     the model pulls the page down on iOS and the gesture is lost. */
+  overscroll-behavior: none;
+}
+
+.ar-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  /* `dvh`, not `vh`: on a phone `100vh` is the viewport with the address bar hidden, so the
+     bottom row of controls sits under it until somebody scrolls. */
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.ar-stage::after {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border: 2px dashed transparent;
+  border-radius: 18px;
+  pointer-events: none;
+  transition: border-color 160ms ease, background 160ms ease;
+  z-index: 1;
+}
+
+.ar-stage.ar-drop-active::after {
+  border-color: var(--ar-blue);
+  background: rgba(0, 151, 232, 0.08);
+}
+
+model-viewer {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  background: transparent;
+  /* The AR button model-viewer slots in for us sits above the variant list. */
+  --poster-color: transparent;
+}
+
+/* The mark behind the model, faint, exactly as the old page had it - `model-viewer:before` there,
+   a real element here. `logo-bg.svg` is a tall shape, so it is bounded on both axes: sized by
+   width alone it runs off a landscape phone. */
+.ar-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(60vw, 300px);
+  max-height: 70dvh;
+  transform: translate(-50%, -50%);
+  opacity: 0.08;
+  pointer-events: none;
+}
+
+/*
+  Everything that floats sits above the model, explicitly.
+
+  `<model-viewer>` is appended to the stage by the script, so it is the **last** child and it
+  positions itself - which put it over the help buttons and the variant list, and swallowed every
+  tap on them. Found by walking the page: the click never reached the button. The old site solved
+  the same problem with `z-index: 999999` on each control; one rule and a small number does it.
+*/
+.ar-status,
+.ar-chrome,
+.ar-variants,
+.ar-preview-buttons {
+  z-index: 2;
+}
+
+.ar-status {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  padding: 10px 18px;
+  max-width: min(86vw, 420px);
+  border-radius: 22px;
+  background: rgba(26, 26, 26, 0.86);
+  color: #ffffff;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.ar-status[hidden] { display: none; }
+
+/* The percentage the old page showed while a model came down. On mobile data a preview is
+   several megabytes, and a screen that says nothing for eight seconds reads as broken. */
+.ar-progress {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ar-chrome {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  pointer-events: none;
+}
+
+.ar-chrome > * { pointer-events: auto; }
+
+.ar-brand-area {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ar-brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ar-touch);
+  padding: 4px;
+}
+
+/* The mark and the wordmark side by side, the old page's lockup: a 3D mark with the type
+   beside it, both from the theme and neither redrawn. */
+.ar-brand-mark { width: 40px; height: 40px; display: block; }
+
+.ar-brand-type { width: 34px; height: 34px; display: block; margin-left: 2px; }
+
+.ar-tools { display: flex; gap: 8px; }
+
+.ar-lang {
+  position: relative;
+  display: inline-flex;
+}
+
+.ar-lang-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  display: grid;
+  gap: 4px;
+  min-width: 118px;
+  padding: 6px;
+  border: 1px solid var(--ar-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ar-ink);
+  box-shadow: rgba(26, 26, 26, 0.18) 0 8px 24px;
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  transform: translateX(-50%);
+}
+
+.ar-lang-menu[hidden] { display: none; }
+
+.ar-lang-menu button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #575757;
+  font-family: var(--ar-font);
+  font-size: 0.88rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ar-lang-menu button[aria-checked="true"] {
+  background: var(--ar-ink);
+  color: var(--ar-card);
+}
+
+.ar-lang-menu button:focus-visible { outline: 3px solid var(--ar-gold); outline-offset: 2px; }
+
+.ar-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--ar-touch);
+  height: var(--ar-touch);
+  padding: 0;
+  border: 1px solid var(--ar-line);
+  border-radius: 50%;
+  background: var(--ar-card);
+  color: var(--ar-ink);
+  font-family: var(--ar-font);
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ar-tool:focus-visible { outline: 3px solid var(--ar-gold); outline-offset: 2px; }
+
+.ar-tool > span[aria-hidden="true"],
+.ar-tool-icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+  line-height: 22px;
+}
+
+.ar-tool > span[aria-hidden="true"] {
+  margin-top: -1px;
+  text-align: center;
+}
+
+/*
+  The variant list: a dropdown, bottom left, where the old page put its `<select>`.
+
+  A native `<select>` rather than a row of buttons. Three models are three pills that wrap onto a
+  second row on a phone and start covering the thing they describe; a dropdown is one control of
+  a known size however many options are behind it, and it is what somebody who used the old page
+  already knows to look for. Each option keeps the file size in its label, because on mobile data
+  that is what the choice is actually about.
+
+  `appearance: none` and our own chevron: a system-styled select on iOS is a full-width grey slab
+  that does not belong on a page with no other chrome on it.
+*/
+.ar-variants {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  /* Never under model-viewer's AR button, which sits bottom-right on devices that have AR. */
+  max-width: calc(100% - 132px);
+  min-height: var(--ar-touch);
+  padding: 8px 34px 8px 14px;
+  border: 1px solid var(--ar-line);
+  border-radius: 22px;
+  background-color: var(--ar-ink);
+  /* The chevron, as a data URI: an SVG file for one 10-pixel arrow is a request. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 10px 6px;
+  color: #ffffff;
+  font-family: var(--ar-font);
+  font-size: 0.85rem;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.ar-variants:focus-visible { outline: 3px solid var(--ar-gold); outline-offset: 2px; }
+
+/* The list a native select opens is drawn by the operating system, and on a dark control some
+   platforms inherit the control's colours for it and some do not. Saying both keeps an option
+   from being white on white. */
+.ar-variants option {
+  background: var(--ar-ink);
+  color: #ffffff;
+}
+
+/*
+  The AR button, in the old page's clothes: white, blue, round-cornered, with a blue glow under
+  it. `#ar-button` in the archive was `background: white; color: rgb(0,151,232); border-radius:
+  24px; box-shadow: rgba(20,173,255,.829) 0 5px 15px`, and this is that - the control a returning
+  customer's thumb already knows.
+
+  model-viewer only slots it in on a device that can actually place a model in a room, so its
+  absence is the answer rather than a button that does nothing. It stays `hidden` in the markup
+  until the script hands it over.
+*/
+.ar-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  color: var(--ar-blue);
+}
+
+.ar-ar-button {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--ar-touch);
+  padding: 9px 18px;
+  border: none;
+  border-radius: 24px;
+  background: var(--ar-blue);
+  color: #ffffff;
+  box-shadow: rgba(0, 151, 232, 0.42) 0 5px 15px;
+  font-family: var(--ar-font);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+  cursor: pointer;
+  animation: ar-breathe 3.4s ease-in-out infinite;
+}
+
+.ar-ar-button[hidden] { display: none; }
+
+.ar-preview-buttons {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: grid;
+  pointer-events: none;
+}
+
+.ar-preview-button {
+  grid-area: 1 / 1;
+  position: static;
+  min-width: 98px;
+  justify-content: center;
+}
+
+.ar-preview-ios,
+.ar-preview-android {
+  background: var(--ar-blue);
+  color: #ffffff;
+}
+
+.ar-glyph {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.ar-scan-glyph {
+  width: 26px;
+  height: 22px;
+}
+
+.ar-scan-corner {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ar-scan-cube { fill: currentColor; }
+
+@keyframes ar-breathe {
+  0%,
+  100% {
+    box-shadow: rgba(0, 151, 232, 0.38) 0 5px 15px;
+    transform: translateZ(0) scale(1);
+  }
+
+  50% {
+    box-shadow: rgba(0, 151, 232, 0.84) 0 7px 24px;
+    transform: translateZ(0) scale(1.025);
+  }
+}
+
+/* The same pair of glyphs inside the sentence that names them, as the old instruction modal had:
+   whitesmoke, a thin blue border, sitting in the line of text. "This button" is only useful
+   beside the button. */
+.ar-chip {
+  padding: 1px 6px;
+  border: 1px solid whitesmoke;
+  color: whitesmoke;
+  border-radius: 6px;
+  background: var(--ar-blue);
+  vertical-align: middle;
+}
+
+.ar-chip .ar-glyph { width: 16px; height: 16px; }
+
+.ar-sheet {
+  position: relative;
+  width: min(92vw, 440px);
+  max-height: 84dvh;
+  padding: 20px;
+  border: 1px solid var(--ar-glass-line);
+  border-radius: 20px;
+  background: var(--ar-glass-bg);
+  color: var(--ar-sheet-ink);
+  box-shadow:
+    0 8px 32px var(--ar-glass-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 20px 10px rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(var(--ar-glass-blur)) saturate(1.28);
+  -webkit-backdrop-filter: blur(var(--ar-glass-blur)) saturate(1.28);
+  overflow-y: auto;
+}
+
+.ar-sheet::backdrop { background: rgba(26, 26, 26, 0.55); }
+
+.ar-sheet::before,
+.ar-sheet::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.ar-sheet::before {
+  top: 0;
+  left: 14px;
+  right: 14px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+}
+
+.ar-sheet::after {
+  top: 14px;
+  left: 0;
+  width: 1px;
+  height: calc(100% - 28px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), transparent, rgba(255, 255, 255, 0.36));
+}
+
+.ar-sheet h1 { margin: 0 0 12px; font-size: 1.1rem; }
+
+.ar-diagram {
+  display: block;
+  width: 150px;
+  margin: 0 auto 16px;
+}
+
+.ar-diagram-logo { width: 96px; }
+
+.ar-steps {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.ar-steps li {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.ar-step {
+  flex: 0 0 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ar-red);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: bold;
+  line-height: 22px;
+  text-align: center;
+}
+
+.ar-caveat {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--ar-red);
+  background: var(--ar-glass-card);
+  background: var(--ar-red);
+  
+  color: var(--ar-sheet-card-ink);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 0 12px rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(14px) saturate(1.18);
+  -webkit-backdrop-filter: blur(14px) saturate(1.18);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.ar-links {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.ar-icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--ar-touch);
+  height: var(--ar-touch);
+  border: 1px solid var(--ar-glass-line);
+  border-radius: 50%;
+  background: var(--ar-glass-card);
+  color: var(--ar-sheet-card-ink);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 0 12px rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(14px) saturate(1.18);
+  -webkit-backdrop-filter: blur(14px) saturate(1.18);
+  text-decoration: none;
+}
+
+.ar-icon-link:focus-visible { outline: 3px solid var(--ar-gold); outline-offset: 2px; }
+
+.ar-close {
+  min-height: var(--ar-touch);
+  width: 100%;
+  border: 1px solid var(--ar-close-line);
+  border-radius: var(--ar-touch);
+  background: var(--ar-close-bg);
+  color: var(--ar-close-ink);
+  font-family: var(--ar-font);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ar-close:focus-visible { outline: 3px solid var(--ar-gold); outline-offset: 2px; }
+
+/* Visible to a screen reader, not on the screen: the tool buttons are a glyph and a word. */
+.ar-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Bigger than a phone: the controls stop hugging the edges, and the model gets a margin. */
+@media (min-width: 700px) {
+  .ar-chrome { padding: 14px; }
+
+  .ar-brand-mark { width: 48px; height: 48px; }
+
+  .ar-brand-type { width: 40px; height: 40px; }
+
+  .ar-variants { left: 16px; bottom: 16px; font-size: 0.95rem; }
+
+  .ar-status { font-size: 1.05rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ar-ink: #f2f2f2;
+    --ar-paper: #1c1c1c;
+    --ar-stage: #141414;
+    --ar-card: #262626;
+    --ar-sheet-bg: #f2f2f2;
+    --ar-sheet-ink: #1c1c1c;
+    --ar-sheet-card: #1c1c1c;
+    --ar-sheet-card-ink: #f2f2f2;
+    --ar-glass-bg: rgba(255, 255, 255, 0.7);
+    --ar-glass-card: rgba(255, 255, 255, 0.7);
+    --ar-glass-line: rgba(255, 255, 255, 0.54);
+    --ar-glass-shadow: rgba(0, 0, 0, 0.2);
+    --ar-line: #3a3a3a;
+    --ar-close-bg: #dddddd;
+    --ar-close-ink: #000000;
+    --ar-close-line: #9e9e9e;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+
+  .ar-ar-button { box-shadow: rgba(0, 151, 232, 0.52) 0 5px 15px; }
+}

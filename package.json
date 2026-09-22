@@ -1,0 +1,12 @@
+{
+  "name": "mixo-ar-standalone",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "three": "^0.180.0"
+  }
+}

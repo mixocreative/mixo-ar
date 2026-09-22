@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#695A42">
+  <title>mixocreative · 3D / AR</title>
+  <link rel="icon" href="./favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="./assets/favicon/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="./site.webmanifest">
+  <link rel="stylesheet" href="./assets/css/mixo-ar.css?v=2026092203">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./assets/vendor/three/three.module.js",
+        "three/addons/": "./assets/vendor/three/addons/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <main class="ar-stage" data-mixo-ar data-fallback="./assets/ar/fallback.glb" data-strings='{"loading":"Loading the model...","empty":"Add models to the URL to preview them.","no-product":"Choose a GLB, GLTF, STL, or OBJ file to preview it here.","failed":"That model could not be loaded.","fallback":"Showing a placeholder model instead.","compressed":"This model uses compression this viewer does not carry. Re-export it without Draco or KTX2.","ar-button":"View in your room","alt":"A 3D model. Drag to turn it.","models":"Which model"}'>
+    <img class="ar-watermark" src="./assets/ar/brand/logo-bg.svg" alt="" aria-hidden="true">
+    <p class="ar-status" role="status" hidden></p>
+    <nav class="ar-chrome">
+      <span class="ar-brand-area">
+        <a class="ar-brand" href="./">
+          <img class="ar-brand-mark" src="./assets/ar/brand/logo-3d.png" alt="mixocreative">
+          <img class="ar-brand-type" src="./assets/ar/brand/logo-type.svg" alt="" aria-hidden="true">
+        </a>
+        <span class="ar-lang" data-lang-control>
+          <button type="button" class="ar-tool" data-lang-toggle aria-haspopup="menu" aria-expanded="false" aria-label="Switch language" data-i18n-aria="languageLabel">
+            <svg class="ar-tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M3.6 12h16.8M12 3a13.4 13.4 0 0 1 0 18M12 3a13.4 13.4 0 0 0 0 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <span class="ar-hidden" data-i18n="languageLabel">Switch language</span>
+          </button>
+          <span class="ar-lang-menu" data-lang-menu role="menu" aria-label="Choose language" hidden>
+            <button type="button" role="menuitemradio" data-lang-option="en">English</button>
+            <button type="button" role="menuitemradio" data-lang-option="zh-Hant">繁中</button>
+            <button type="button" role="menuitemradio" data-lang-option="ja">日本語</button>
+          </span>
+        </span>
+      </span>
+      <span class="ar-tools">
+        <button type="button" class="ar-tool" data-sheet="ar-instructions" aria-haspopup="dialog">
+          <span aria-hidden="true">?</span><span class="ar-hidden" data-i18n="helpLabel">How to use this</span>
+        </button>
+        <button type="button" class="ar-tool" data-sheet="ar-info" aria-haspopup="dialog">
+          <span aria-hidden="true">i</span><span class="ar-hidden" data-i18n="aboutLabel">About</span>
+        </button>
+        <label class="ar-tool" for="model-file-input" role="button" tabindex="0">
+          <span aria-hidden="true">+</span><span class="ar-hidden" data-i18n="loadLocalLabel">Load a local model</span>
+        </label>
+      </span>
+    </nav>
+    <input id="model-file-input" class="ar-hidden" type="file" accept=".glb,.gltf,.stl,.obj" multiple aria-label="Load a model" data-i18n-aria="loadLocalLabel" hidden>
+    <button type="button" id="ar-button" class="ar-ar-button" slot="ar-button" hidden>
+      <svg class="ar-glyph ar-scan-glyph" viewBox="0 0 32 24" aria-hidden="true" focusable="false">
+        <path class="ar-scan-corner" d="M2 7V2h5M25 2h5v5M30 17v5h-5M7 22H2v-5"/>
+        <path class="ar-scan-cube" d="M16 4 23 8 16 12 9 8zM9 9.5l7 4v7l-7-4zM23 9.5l-7 4v7l7-4z"/>
+      </svg>
+      <span aria-hidden="true">AR</span>
+      <span class="ar-hidden" data-i18n="arButton">View in your room</span>
+    </button>
+  </main>
+
+  <dialog id="ar-instructions" class="ar-sheet">
+    <h1 data-i18n="helpTitle">How to use this</h1>
+    <img class="ar-diagram" src="./assets/ar/instructions.svg" alt="Where the controls are on the screen" data-i18n-alt="diagramAlt">
+    <ol class="ar-steps">
+      <li><span class="ar-step">1</span><span data-i18n="stepModels">If the URL or a local load includes more than one model, they are listed here.</span></li>
+      <li><span class="ar-step">2</span><span><span data-i18n="stepArBefore">On a phone that supports it,</span> <span class="ar-chip"><svg class="ar-glyph ar-scan-glyph" viewBox="0 0 32 24" aria-hidden="true" focusable="false"><path class="ar-scan-corner" d="M2 7V2h5M25 2h5v5M30 17v5h-5M7 22H2v-5"/><path class="ar-scan-cube" d="M16 4 23 8 16 12 9 8zM9 9.5l7 4v7l-7-4zM23 9.5l-7 4v7l7-4z"/></svg><span aria-hidden="true">AR</span></span> <span data-i18n="stepArAfter">places the model in the room in front of you.</span></span></li>
+      <li><span class="ar-step">3</span><span data-i18n="stepInfo">This sheet, and who made it.</span></li>
+    </ol>
+    <p class="ar-caveat" data-i18n="caveat">AR does not start inside the browsers built into LINE, Facebook and other apps. Copy the link and open it in Chrome or Safari.</p>
+    <form method="dialog"><button class="ar-close" data-i18n="close">Close</button></form>
+  </dialog>
+
+  <dialog id="ar-info" class="ar-sheet">
+    <h1 data-i18n="aboutTitle">About</h1>
+    <img class="ar-diagram ar-diagram-logo" src="./assets/ar/brand/logo-main.png" alt="">
+    <p data-i18n="aboutBody" style="text-align: center;">A standalone mixocreative 3D/AR viewer.</p>
+    <p class="ar-links">
+      <a class="ar-icon-link" href="https://mixocreative.com/" target="_blank" rel="noopener" aria-label="mixocreative website" data-i18n-aria="companyLink">
+        <svg class="ar-tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4 11.5 12 5l8 6.5" fill="none" stroke="black" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M6.5 10.5V19h11v-8.5M10 19v-5h4v5" fill="none" stroke="black" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <a class="ar-icon-link" href="https://www.instagram.com/mixocreative/" target="_blank" rel="noopener" aria-label="Instagram" data-i18n-aria="instagramLink" style="background: #6023a6;
+background: linear-gradient(307deg,rgba(96, 35, 166, 1) 0%, rgba(207, 0, 41, 1) 100%);">
+        <svg class="ar-tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <rect x="5" y="5" width="14" height="14" rx="4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+          <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+          <circle cx="16.5" cy="7.5" r="1" fill="currentColor"/>
+        </svg>
+      </a>
+    </p>
+    <form method="dialog"><button class="ar-close" data-i18n="close">Close</button></form>
+  </dialog>
+
+  <script type="module" src="./assets/js/mixo-ar.js?v=2026092203"></script>
+</body>
+</html>
