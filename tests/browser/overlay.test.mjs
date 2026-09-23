@@ -160,3 +160,68 @@ test('a 3MF archive loads and clears the overlay', async () => {
   assert.equal(await overlayVisible(page), false);
   await page.close();
 });
+
+test('a corrupt model reports a failure instead of hanging or crashing', async () => {
+  const { page } = await openViewer(`${origin}/index.html?model=./assets/ar/fallback.glb`);
+
+  await page.setInputFiles('#model-file-input', join(root, 'tests', 'fixtures', 'broken.ply'));
+  await page.waitForTimeout(2500);
+
+  const message = await page.evaluate(() => document.querySelector('.ar-status')?.textContent || '');
+
+  assert.ok(await overlayVisible(page), 'a failure must be shown, not swallowed');
+  assert.match(message, /could not be loaded|無法載入|読み込めません/);
+  await page.close();
+});
+
+test('an OBJ chosen without its .mtl still loads', async () => {
+  const { page, errors } = await openViewer(`${origin}/index.html?model=./assets/ar/fallback.glb`);
+
+  await page.setInputFiles('#model-file-input', join(root, 'tests', 'fixtures', 'quad.obj'));
+  await page.waitForFunction(() => document.querySelector('model-viewer')?.loaded === true, null, { timeout: 30000 });
+  await page.waitForTimeout(1200);
+
+  assert.deepEqual(errors, [], 'a missing companion is not an error, just no texture');
+  assert.equal(await overlayVisible(page), false);
+  await page.close();
+});
+
+test('two models chosen at once are both offered', async () => {
+  const { page } = await openViewer(`${origin}/index.html?model=./assets/ar/fallback.glb`);
+
+  await page.setInputFiles('#model-file-input', [
+    join(root, 'tests', 'fixtures', 'quad.obj'),
+    join(root, 'tests', 'fixtures', 'tetra.ply'),
+  ]);
+  await page.waitForFunction(() => document.querySelector('model-viewer')?.loaded === true, null, { timeout: 40000 });
+  await page.waitForTimeout(1200);
+
+  // The switcher is a select of options, shown only when more than one model loaded.
+  const choices = await page.evaluate(() => document.querySelectorAll('select.ar-variants option').length);
+
+  assert.ok(choices >= 2, `both models should be selectable, found ${choices}`);
+  await page.close();
+});
+
+test('object URLs do not accumulate across repeated loads', async () => {
+  const { page } = await openViewer(`${origin}/index.html?model=./assets/ar/fallback.glb`);
+
+  await page.evaluate(() => {
+    window.__live = new Set();
+    const make = URL.createObjectURL.bind(URL);
+    const drop = URL.revokeObjectURL.bind(URL);
+    URL.createObjectURL = (blob) => { const url = make(blob); window.__live.add(url); return url; };
+    URL.revokeObjectURL = (url) => { window.__live.delete(url); return drop(url); };
+  });
+
+  for (let round = 0; round < 3; round += 1) {
+    await page.setInputFiles('#model-file-input', join(root, 'tests', 'fixtures', 'tetra.ply'));
+    await page.waitForTimeout(2500);
+  }
+
+  const live = await page.evaluate(() => window.__live.size);
+
+  // One model is on screen, so a small number is expected; growth per load is not.
+  assert.ok(live <= 3, `object URLs should not pile up, ${live} still held after three loads`);
+  await page.close();
+});
