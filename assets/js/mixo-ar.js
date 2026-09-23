@@ -21,7 +21,7 @@ const I18N = {
     instagramLink: 'Open mixocreative Instagram',
     close: 'Close',
     loading: 'Loading the model...',
-    noProduct: 'Choose a GLB, GLTF, STL, or OBJ file to preview it here.',
+    noProduct: 'Choose a GLB, GLTF, OBJ, PLY, 3MF, or STL file to preview it here.',
     failed: 'That model could not be loaded.',
     fallback: 'Showing a placeholder model instead.',
     compressed: 'This model uses compression this viewer does not carry. Re-export it without Draco or KTX2.',
@@ -29,7 +29,7 @@ const I18N = {
     alt: 'A 3D model. Drag to turn it.',
     models: 'Which model',
     localLoading: 'Loading local model...',
-    unsupported: 'Drop or choose a GLB, GLTF, STL, or OBJ file. Include the .mtl and texture with an OBJ to keep its material.',
+    unsupported: 'Drop or choose a GLB, GLTF, OBJ, PLY, 3MF, or STL file. Include the .mtl and texture with an OBJ to keep its material.',
   },
   'zh-Hant': {
     title: 'mixocreative · 3D/AR',
@@ -50,7 +50,7 @@ const I18N = {
     instagramLink: '開啟 mixocreative Instagram',
     close: '關閉',
     loading: '模型載入中...',
-    noProduct: '選擇 GLB、GLTF、STL 或 OBJ 檔案即可在這裡預覽。',
+    noProduct: '選擇 GLB、GLTF、OBJ、PLY、3MF 或 STL 檔案即可在這裡預覽。',
     failed: '無法載入這個模型。',
     fallback: '目前顯示替代模型。',
     compressed: '這個模型使用了此檢視器未內建的壓縮格式。請重新匯出為不含 Draco 或 KTX2 的檔案。',
@@ -58,7 +58,7 @@ const I18N = {
     alt: '3D 模型。拖曳即可旋轉。',
     models: '選擇模型',
     localLoading: '本機模型載入中...',
-    unsupported: '請拖放或選擇 GLB、GLTF、STL 或 OBJ 檔案。OBJ 請連同 .mtl 與貼圖一起選取，才能保留材質。',
+    unsupported: '請拖放或選擇 GLB、GLTF、OBJ、PLY、3MF 或 STL 檔案。OBJ 請連同 .mtl 與貼圖一起選取，才能保留材質。',
   },
   ja: {
     title: 'mixocreative · 3D/AR',
@@ -79,7 +79,7 @@ const I18N = {
     instagramLink: 'mixocreative Instagram を開く',
     close: '閉じる',
     loading: 'モデルを読み込んでいます...',
-    noProduct: 'GLB、GLTF、STL、OBJ ファイルを選択すると、ここでプレビューできます。',
+    noProduct: 'GLB、GLTF、OBJ、PLY、3MF、STL ファイルを選択すると、ここでプレビューできます。',
     failed: 'このモデルを読み込めませんでした。',
     fallback: '代替モデルを表示しています。',
     compressed: 'このモデルは、このビューアーに含まれていない圧縮形式を使用しています。Draco または KTX2 なしで再書き出ししてください。',
@@ -87,7 +87,7 @@ const I18N = {
     alt: '3D モデル。ドラッグして回転できます。',
     models: 'モデルを選択',
     localLoading: 'ローカルモデルを読み込んでいます...',
-    unsupported: 'GLB、GLTF、STL、OBJ ファイルをドロップまたは選択してください。OBJ は .mtl とテクスチャも一緒に選ぶとマテリアルが保持されます。',
+    unsupported: 'GLB、GLTF、OBJ、PLY、3MF、STL ファイルをドロップまたは選択してください。OBJ は .mtl とテクスチャも一緒に選ぶとマテリアルが保持されます。',
   },
 };
 
@@ -696,7 +696,7 @@ export async function modelsFromDroppedFiles(files, options = {}) {
 }
 
 function fileStem(name) {
-  const base = String(name || '').split(/[\/]/).pop();
+  const base = String(name || '').split(/[\\/]/).pop();
   const dot = base.lastIndexOf('.');
 
   return (dot === -1 ? base : base.slice(0, dot)).toLowerCase();
@@ -709,8 +709,164 @@ export function modelKindFromName(name) {
     return 'viewer';
   }
 
-  if (extension === 'stl' || extension === 'obj') {
+  if (extension === 'stl' || extension === 'obj' || extension === 'ply' || extension === '3mf') {
     return 'mesh';
+  }
+
+  return null;
+}
+
+/**
+ * Parse an ASCII PLY, keeping per-vertex colour when the file carries it.
+ *
+ * Written by hand rather than taken from a loader because the common PLY handlers treat
+ * the extension as gaussian-splat data, which misreads an ordinary mesh.
+ */
+export function parsePlyMesh(text) {
+  const lines = String(text).split(/\r?\n/);
+  const headerEnd = lines.findIndex((line) => line.trim() === 'end_header');
+
+  if (headerEnd === -1) {
+    throw new Error('PLY header is missing end_header');
+  }
+
+  let vertexCount = 0;
+  let faceCount = 0;
+  let element = '';
+  const properties = [];
+
+  for (const raw of lines.slice(0, headerEnd)) {
+    const parts = raw.trim().split(/\s+/);
+
+    if (parts[0] === 'element') {
+      element = parts[1];
+
+      if (element === 'vertex') {
+        vertexCount = Number(parts[2]);
+      }
+
+      if (element === 'face') {
+        faceCount = Number(parts[2]);
+      }
+    }
+
+    if (parts[0] === 'property' && parts[1] !== 'list' && element === 'vertex') {
+      properties.push(parts[2]);
+    }
+  }
+
+  const body = lines.slice(headerEnd + 1).filter((line) => line.trim() !== '');
+  const positions = new Float32Array(vertexCount * 3);
+  const colors = new Float32Array(vertexCount * 3);
+  let hasColour = false;
+
+  for (let index = 0; index < vertexCount; index += 1) {
+    const values = body[index].trim().split(/\s+/).map(Number);
+    const row = {};
+
+    properties.forEach((name, at) => {
+      row[name] = values[at];
+    });
+
+    positions.set([row.x || 0, row.y || 0, row.z || 0], index * 3);
+
+    if (typeof row.red === 'number') {
+      hasColour = true;
+      colors.set([row.red / 255, row.green / 255, row.blue / 255], index * 3);
+    } else {
+      colors.set([1, 1, 1], index * 3);
+    }
+  }
+
+  const indices = [];
+
+  for (let index = 0; index < faceCount; index += 1) {
+    const values = body[vertexCount + index].trim().split(/\s+/).map(Number);
+    const corners = values.slice(1, values[0] + 1);
+
+    for (let corner = 1; corner + 1 < corners.length; corner += 1) {
+      indices.push(corners[0], corners[corner], corners[corner + 1]);
+    }
+  }
+
+  return {
+    positions,
+    indices: new Uint32Array(indices),
+    colors: hasColour ? colors : null,
+  };
+}
+
+/**
+ * Pull the geometry out of a 3MF model document.
+ *
+ * Matched with regular expressions rather than DOMParser so the same code runs in the
+ * browser and under `node --test`; the document is machine written and its vertex and
+ * triangle elements are flat.
+ */
+export function parse3mfModelXml(xml) {
+  const text = String(xml);
+  const positions = [];
+  const indices = [];
+
+  const vertexPattern = /<vertex\b([^>]*)\/?>/g;
+  const trianglePattern = /<triangle\b([^>]*)\/?>/g;
+
+  for (const match of text.matchAll(vertexPattern)) {
+    positions.push(attributeNumber(match[1], 'x'), attributeNumber(match[1], 'y'), attributeNumber(match[1], 'z'));
+  }
+
+  for (const match of text.matchAll(trianglePattern)) {
+    indices.push(attributeNumber(match[1], 'v1'), attributeNumber(match[1], 'v2'), attributeNumber(match[1], 'v3'));
+  }
+
+  if (positions.length === 0) {
+    throw new Error('3MF document contains no vertices');
+  }
+
+  return { positions: new Float32Array(positions), indices: new Uint32Array(indices), colors: null };
+}
+
+function attributeNumber(attributes, name) {
+  const match = new RegExp(`${name}\\s*=\\s*"([^"]*)"`).exec(attributes);
+
+  return match ? Number(match[1]) : 0;
+}
+
+/**
+ * Inflate one entry from a ZIP archive, which is all a 3MF container is.
+ *
+ * DecompressionStream is used so no zip library has to be vendored.
+ */
+export async function readZipEntry(buffer, wanted) {
+  const view = new DataView(buffer);
+  const bytes = new Uint8Array(buffer);
+  const decoder = new TextDecoder();
+
+  for (let at = 0; at + 30 <= bytes.length; at += 1) {
+    if (view.getUint32(at, true) !== 0x04034b50) {
+      continue;
+    }
+
+    const method = view.getUint16(at + 8, true);
+    const compressedSize = view.getUint32(at + 18, true);
+    const nameLength = view.getUint16(at + 26, true);
+    const extraLength = view.getUint16(at + 28, true);
+    const name = decoder.decode(bytes.subarray(at + 30, at + 30 + nameLength));
+
+    if (name !== wanted) {
+      continue;
+    }
+
+    const start = at + 30 + nameLength + extraLength;
+    const payload = bytes.subarray(start, start + compressedSize);
+
+    if (method === 0) {
+      return decoder.decode(payload);
+    }
+
+    const stream = new Blob([payload]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+
+    return await new Response(stream).text();
   }
 
   return null;
@@ -746,9 +902,13 @@ async function convertLocalMeshToGlbUrl(file, _extension, companions = new Map()
   ]);
   const buffer = await file.arrayBuffer();
   const extension = modelExtensionFromName(file.name);
-  const root = extension === 'stl'
-    ? stlToObject(buffer, three, STLLoader)
-    : await objToObject(buffer, three, OBJLoader, MTLLoader, companions);
+  const root = await meshObjectFor(extension, buffer, {
+    three,
+    STLLoader,
+    OBJLoader,
+    MTLLoader,
+    companions,
+  });
   const scene = new three.Scene();
 
   centerObject(root, three);
@@ -860,7 +1020,7 @@ function findCompanion(companions, name, extension) {
   }
 
   if (name) {
-    const base = String(name).trim().split(/[\/]/).pop().toLowerCase();
+    const base = String(name).trim().split(/[\\/]/).pop().toLowerCase();
     const direct = companions.get(base);
 
     if (direct) {
@@ -1057,4 +1217,53 @@ function readStrings(stage) {
   } catch (failure) {
     return {};
   }
+}
+
+async function meshObjectFor(extension, buffer, deps) {
+  const { three, STLLoader, OBJLoader, MTLLoader, companions } = deps;
+
+  if (extension === 'stl') {
+    return stlToObject(buffer, three, STLLoader);
+  }
+
+  if (extension === 'ply') {
+    return parsedMeshToObject(parsePlyMesh(new TextDecoder().decode(buffer)), three);
+  }
+
+  if (extension === '3mf') {
+    const document = await readZipEntry(buffer, '3D/3dmodel.model');
+
+    if (!document) {
+      throw new Error('3MF archive has no 3D/3dmodel.model');
+    }
+
+    return parsedMeshToObject(parse3mfModelXml(document), three);
+  }
+
+  return objToObject(buffer, three, OBJLoader, MTLLoader, companions);
+}
+
+/** Build a three mesh from parsed geometry, keeping per-vertex colour when present. */
+function parsedMeshToObject(parsed, three) {
+  const geometry = new three.BufferGeometry();
+
+  geometry.setAttribute('position', new three.BufferAttribute(parsed.positions, 3));
+  geometry.setIndex(new three.BufferAttribute(parsed.indices, 1));
+
+  if (parsed.colors) {
+    geometry.setAttribute('color', new three.BufferAttribute(parsed.colors, 3));
+  }
+
+  // These formats carry no normals, and without them the model renders unlit.
+  geometry.computeVertexNormals();
+
+  const material = new three.MeshStandardMaterial({
+    color: parsed.colors ? 0xffffff : 0xb8b8b8,
+    vertexColors: Boolean(parsed.colors),
+    roughness: 0.75,
+    metalness: 0.05,
+    side: three.DoubleSide,
+  });
+
+  return new three.Mesh(geometry, material);
 }
