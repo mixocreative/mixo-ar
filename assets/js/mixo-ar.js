@@ -596,10 +596,36 @@ function openSheets() {
   }
 }
 
+/**
+ * iOS filters the file picker by uniform type identifier, not by extension. It knows
+ * nothing about .obj, .mtl, .ply or .3mf, so those entries grey the files out instead of
+ * allowing them, and the companion files an OBJ needs cannot be selected at all.
+ *
+ * Only iOS is relaxed. Every other platform keeps the explicit list, which is what makes
+ * the picker helpful there.
+ */
+export function acceptAttributeFor(userAgent, platform, maxTouchPoints, current) {
+  const ua = String(userAgent || '');
+  const isIosDevice = /iPad|iPhone|iPod/.test(ua);
+  // iPadOS reports itself as a Mac, and is only distinguishable by touch support.
+  const isIpadOS = String(platform || '') === 'MacIntel' && Number(maxTouchPoints || 0) > 1;
+
+  return isIosDevice || isIpadOS ? '*/*' : current;
+}
+
 function enableLocalModelLoading(stage, state, strings, status) {
   const input = document.getElementById('model-file-input');
   const pickers = document.querySelectorAll('[data-pick-model]');
   const pickerLabels = document.querySelectorAll('label[for="model-file-input"]');
+
+  if (input) {
+    input.setAttribute('accept', acceptAttributeFor(
+      navigator.userAgent,
+      navigator.platform,
+      navigator.maxTouchPoints,
+      input.getAttribute('accept'),
+    ));
+  }
 
   const load = async (files) => {
     say(status, strings.localLoading || 'Loading local model...', '', '0%', 0);

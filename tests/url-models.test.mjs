@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
+  acceptAttributeFor,
   arPreviewMode,
   detectLocale,
   modelKindFromName,
@@ -252,4 +253,20 @@ test('the asset cache token is bumped whenever the scripts change', async () => 
   assert.ok(tokens.length >= 2, 'both the script and the stylesheet are pinned');
   assert.equal(new Set(tokens).size, 1, 'they share one token');
   assert.ok(Number(tokens[0]) >= 2026092401, 'the token must be bumped past the last shipped build');
+});
+
+test('the file picker is only relaxed on iOS, which filters by type identifier', () => {
+  const list = '.glb,.gltf,.obj,.ply,.3mf,.stl,.mtl,.png,.jpg,.jpeg,.webp';
+  const iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15';
+  const mac = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
+  const android = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120';
+
+  // iOS cannot match .obj or .mtl to a known type, so an explicit list greys them out.
+  assert.equal(acceptAttributeFor(iphone, 'iPhone', 5, list), '*/*');
+  // iPadOS claims to be a Mac; touch points are the only tell.
+  assert.equal(acceptAttributeFor(mac, 'MacIntel', 5, list), '*/*');
+
+  // Everywhere else keeps the helpful filter.
+  assert.equal(acceptAttributeFor(mac, 'MacIntel', 0, list), list);
+  assert.equal(acceptAttributeFor(android, 'Linux armv8l', 5, list), list);
 });
