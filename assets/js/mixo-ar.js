@@ -37,6 +37,7 @@ const I18N = {
     textureSlow: 'A texture took too long to load, so the model is shown without it.',
     largeModel: 'This model is {size}. Converting it can take a while on a phone.',
     noUnzip: 'This browser cannot open 3MF archives. Try Chrome, Edge, or a recent Safari.',
+    blocked: 'The site hosting this model does not allow other sites to read it.',
     unsupported: 'Drop or choose a GLB, GLTF, OBJ, PLY, 3MF, or STL file. Include the .mtl and texture with an OBJ to keep its material.',
   },
   'zh-Hant': {
@@ -74,6 +75,7 @@ const I18N = {
     textureSlow: '貼圖載入逾時，改以無貼圖方式顯示。',
     largeModel: '這個模型有 {size}，在手機上轉換可能需要一些時間。',
     noUnzip: '此瀏覽器無法開啟 3MF 壓縮檔。請改用 Chrome、Edge 或較新的 Safari。',
+    blocked: '存放這個模型的網站不允許其他網站讀取它。',
     unsupported: '請拖放或選擇 GLB、GLTF、OBJ、PLY、3MF 或 STL 檔案。OBJ 請連同 .mtl 與貼圖一起選取，才能保留材質。',
   },
   ja: {
@@ -111,6 +113,7 @@ const I18N = {
     textureSlow: 'テクスチャの読み込みに時間がかかったため、テクスチャなしで表示します。',
     largeModel: 'このモデルは {size} です。スマートフォンでは変換に時間がかかることがあります。',
     noUnzip: 'このブラウザーは 3MF を開けません。Chrome、Edge、または新しい Safari をお使いください。',
+    blocked: 'このモデルを配信しているサイトが、他サイトからの読み込みを許可していません。',
     unsupported: 'GLB、GLTF、OBJ、PLY、3MF、STL ファイルをドロップまたは選択してください。OBJ は .mtl とテクスチャも一緒に選ぶとマテリアルが保持されます。',
   },
 };
@@ -532,9 +535,15 @@ function mount(stage, status, strings, models, isFallback, message) {
     viewer.removeAttribute('src');
     viewableModelUrl(first).then((ready) => {
       viewer.src = ready;
-    }).catch(() => {
+    }).catch((failure) => {
       isFallback = true;
+
+      if (failure && failure.message === 'MODEL_FETCH_BLOCKED') {
+        standing = strings.blocked;
+      }
+
       say(status, standing, strings.fallback);
+      status.hidden = false;
       viewer.src = stage.dataset.fallback;
     });
   } else {
@@ -586,8 +595,8 @@ function switcher(models, viewer, status, strings) {
 
     viewableModelUrl(url).then((ready) => {
       viewer.src = ready;
-    }).catch(() => {
-      say(status, strings.failed);
+    }).catch((failure) => {
+      say(status, failure && failure.message === 'MODEL_FETCH_BLOCKED' ? strings.blocked : strings.failed);
       status.hidden = false;
     });
   });
@@ -1326,7 +1335,16 @@ async function companionsFromUrl(objText, modelUrl) {
 async function convertUrlMeshToGlbUrl(modelUrl, report = () => {}) {
   report('reading', 0);
 
-  const response = await fetch(modelUrl);
+  let response;
+
+  try {
+    response = await fetch(modelUrl);
+  } catch {
+    // A host that does not allow cross-origin reads rejects before any status exists,
+    // so this is indistinguishable from being offline - but the usual cause is CORS,
+    // and the fix is on the server holding the model rather than here.
+    throw new Error('MODEL_FETCH_BLOCKED');
+  }
 
   if (!response.ok) {
     throw new Error(`Could not fetch the model (${response.status})`);

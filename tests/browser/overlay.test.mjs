@@ -303,8 +303,12 @@ test('a cross-domain model without CORS fails visibly instead of hanging', async
 
     const message = await page.evaluate(() => document.querySelector('.ar-status')?.textContent || '');
 
-    // The user must be told something, not left watching an empty stage.
-    assert.ok(message.trim().length > 0, 'a blocked cross-domain model must say so');
+    // Naming the cause matters: the fix is on the host serving the model, not here.
+    assert.match(
+      message,
+      /does not allow|不允許|許可していません/,
+      `a blocked cross-domain model should name the cause, got: ${message.trim()}`,
+    );
     await page.close();
   } finally {
     await new Promise((resolve) => other.close(resolve));
