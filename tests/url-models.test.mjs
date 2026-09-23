@@ -242,3 +242,14 @@ test('ar button preview has iPhone and Android visual treatments', async () => {
   assert.match(css, /\.ar-scan-corner[\s\S]*stroke: currentColor/);
   assert.match(css, /\.ar-scan-cube[\s\S]*fill: currentColor/);
 });
+
+test('the asset cache token is bumped whenever the scripts change', async () => {
+  // Assets are pinned by a ?v= token. Shipping a JS or CSS change without bumping it
+  // leaves every returning visitor on the previously cached copy.
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const tokens = [...html.matchAll(/(?:mixo-ar\.(?:js|css))\?v=(\d+)/g)].map((match) => match[1]);
+
+  assert.ok(tokens.length >= 2, 'both the script and the stylesheet are pinned');
+  assert.equal(new Set(tokens).size, 1, 'they share one token');
+  assert.ok(Number(tokens[0]) >= 2026092401, 'the token must be bumped past the last shipped build');
+});
