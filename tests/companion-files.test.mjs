@@ -74,3 +74,13 @@ test('a GLB dropped with unrelated files is still shown on its own', async () =>
   assert.equal(models.length, 1);
   assert.equal(models[0].url, 'blob:viewer');
 });
+
+test('a local selection yields one model even when several are picked', async () => {
+  const models = await modelsFromDroppedFiles(
+    [file('first.obj'), file('first.mtl'), file('second.ply')],
+    { createObjectURL: () => 'blob:v', convertMeshToGlbUrl: async () => 'blob:c' },
+  );
+
+  assert.equal(models.length, 1, 'one model at a time from the device');
+  assert.equal(models[0].filename, 'first.obj');
+});

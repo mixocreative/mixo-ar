@@ -186,7 +186,9 @@ test('an OBJ chosen without its .mtl still loads', async () => {
   await page.close();
 });
 
-test('two models chosen at once are both offered', async () => {
+test('a local selection shows one model, not several', async () => {
+  // Extra files in a local selection are an OBJ's companions, not more models. Lists of
+  // several models are a URL feature, where they can also come from another host.
   const { page } = await openViewer(`${origin}/index.html?model=./assets/ar/fallback.glb`);
 
   await page.setInputFiles('#model-file-input', [
@@ -196,10 +198,10 @@ test('two models chosen at once are both offered', async () => {
   await page.waitForFunction(() => document.querySelector('model-viewer')?.loaded === true, null, { timeout: 40000 });
   await page.waitForTimeout(1200);
 
-  // The switcher is a select of options, shown only when more than one model loaded.
   const choices = await page.evaluate(() => document.querySelectorAll('select.ar-variants option').length);
 
-  assert.ok(choices >= 2, `both models should be selectable, found ${choices}`);
+  assert.ok(choices <= 1, `a local load should show one model, found ${choices}`);
+  assert.equal(await overlayVisible(page), false);
   await page.close();
 });
 
@@ -223,5 +225,27 @@ test('object URLs do not accumulate across repeated loads', async () => {
 
   // One model is on screen, so a small number is expected; growth per load is not.
   assert.ok(live <= 3, `object URLs should not pile up, ${live} still held after three loads`);
+  await page.close();
+});
+
+test('an OBJ given by URL resolves its .mtl and texture from the same folder', async () => {
+  // 3DGEN's viewer fetches a model's companions by URL. This viewer should too:
+  // the .obj names its .mtl, which names its texture, and both sit beside it.
+  const page = await browser.newPage();
+  const errors = [];
+  const fetched = [];
+
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('request', (request) => fetched.push(new URL(request.url()).pathname));
+
+  await page.goto(`${origin}/index.html?model=./tests/fixtures/quad.obj`, { waitUntil: 'load' });
+  await page.waitForFunction(() => document.querySelector('model-viewer')?.loaded === true, null, { timeout: 30000 });
+  await page.waitForTimeout(1200);
+
+  assert.deepEqual(errors, []);
+  assert.ok(fetched.some((path) => path.endsWith('quad.obj')), 'the model itself was fetched');
+  assert.ok(fetched.some((path) => path.endsWith('quad.mtl')), 'the .mtl named by the obj was fetched');
+  assert.ok(fetched.some((path) => path.endsWith('quad_texture.png')), 'the texture named by the mtl was fetched');
+  assert.equal(await overlayVisible(page), false);
   await page.close();
 });

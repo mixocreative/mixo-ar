@@ -71,7 +71,10 @@ test('turns dropped glb files into viewer models', async () => {
   ]);
 });
 
-test('converts dropped stl and obj files before they become viewer models', async () => {
+test('converts a dropped mesh file before it becomes a viewer model', async () => {
+  // Changed from the original behaviour: a local load now shows one model at a time,
+  // because the other files in a selection are an OBJ's companions rather than more
+  // models. Lists of several models come from the URL.
   const files = [
     new File(['solid x endsolid x'], 'scan.stl'),
     new File(['o Box'], 'mesh.obj')
@@ -85,12 +88,12 @@ test('converts dropped stl and obj files before they become viewer models', asyn
     },
   });
 
-  assert.deepEqual(converted, [['scan.stl', 'stl'], ['mesh.obj', 'obj']]);
+  assert.deepEqual(converted, [['scan.stl', 'stl']], 'only the first model is converted');
   assert.deepEqual(models, [
-    { url: 'blob:scan.stl.glb', displayName: 'scan.stl', filename: 'scan.stl', size: '18 B', objectUrl: true },
-    { url: 'blob:mesh.obj.glb', displayName: 'mesh.obj', filename: 'mesh.obj', size: '5 B', objectUrl: true }
+    { url: 'blob:scan.stl.glb', displayName: 'scan.stl', filename: 'scan.stl', size: '18 B', objectUrl: true }
   ]);
 });
+
 
 test('standalone page uses relative local assets for GitHub Pages', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');

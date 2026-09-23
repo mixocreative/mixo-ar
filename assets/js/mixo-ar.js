@@ -10,7 +10,7 @@ const I18N = {
     loadLocalLabel: 'Load a local model',
     helpTitle: 'How to use this',
     diagramAlt: 'Where the controls are on the screen',
-    stepModels: 'If the URL or a local load includes more than one model, they are listed here.',
+    stepModels: 'If the link lists more than one model, they are listed here. A file you open from this device shows one model at a time.',
     stepArBefore: 'On a phone that supports it,',
     stepArAfter: 'places the model in the room in front of you.',
     stepInfo: 'Load models, view descriptions, and see creator info.',
@@ -47,7 +47,7 @@ const I18N = {
     loadLocalLabel: '載入本機模型',
     helpTitle: '使用說明',
     diagramAlt: '畫面控制位置',
-    stepModels: '如果網址或本機載入包含多個模型，會在這裡列出。',
+    stepModels: '如果連結包含多個模型，會在這裡列出。從裝置開啟的檔案一次顯示一個模型。',
     stepArBefore: '在支援 AR 的手機上，',
     stepArAfter: '可以把模型放到你面前的空間中。',
     stepInfo: '這裡可以載入3D模型、查看說明與製作者資訊。',
@@ -84,7 +84,7 @@ const I18N = {
     loadLocalLabel: 'ローカルモデルを読み込む',
     helpTitle: '使い方',
     diagramAlt: '画面上の操作ボタンの位置',
-    stepModels: 'URL またはローカル読み込みに複数のモデルがある場合、ここに一覧表示されます。',
+    stepModels: 'リンクに複数のモデルが含まれる場合、ここに一覧表示されます。端末から開いたファイルは一度に 1 つのモデルを表示します。',
     stepArBefore: '対応しているスマートフォンでは、',
     stepArAfter: 'モデルを目の前の空間に配置できます。',
     stepInfo: 'ここでは3Dモデルの読み込み、説明の閲覧、製作者情報の確認ができます。',
@@ -526,7 +526,21 @@ function mount(stage, status, strings, models, isFallback, message) {
     viewer.src = stage.dataset.fallback;
   });
 
-  viewer.src = first;
+  // A link can point at an .obj, .ply, .3mf or .stl. Those are fetched, their
+  // dependencies resolved from the same folder, and converted before display.
+  if (modelKindFromName(String(first).split('?')[0]) === 'mesh') {
+    viewer.removeAttribute('src');
+    viewableModelUrl(first).then((ready) => {
+      viewer.src = ready;
+    }).catch(() => {
+      isFallback = true;
+      say(status, standing, strings.fallback);
+      viewer.src = stage.dataset.fallback;
+    });
+  } else {
+    viewer.src = first;
+  }
+
   stage.append(viewer);
 
   let variants = null;
@@ -569,7 +583,13 @@ function switcher(models, viewer, status, strings) {
 
     say(status, strings.loading);
     status.hidden = false;
-    viewer.src = url;
+
+    viewableModelUrl(url).then((ready) => {
+      viewer.src = ready;
+    }).catch(() => {
+      say(status, strings.failed);
+      status.hidden = false;
+    });
   });
 
   return select;
@@ -789,12 +809,19 @@ export function groupDroppedFiles(files) {
   });
 }
 
+/**
+ * Build the model to show from files the user picked.
+ *
+ * A local load is deliberately one model at a time, on phone and desktop alike: the
+ * extra files in a selection are an OBJ's .mtl and texture, not more models. Lists of
+ * several models come from the URL, where they can also be hosted elsewhere.
+ */
 export async function modelsFromDroppedFiles(files, options = {}) {
   const createObjectURL = options.createObjectURL;
   const convertMeshToGlbUrl = options.convertMeshToGlbUrl;
   const models = [];
 
-  for (const { model, companions } of groupDroppedFiles(files)) {
+  for (const { model, companions } of groupDroppedFiles(files).slice(0, 1)) {
     const kind = modelKindFromName(model.name);
 
     if (kind === 'viewer' && createObjectURL) {
@@ -1229,10 +1256,127 @@ function localModel(url, file) {
   };
 }
 
+
+/**
+ * Fetch the files an OBJ depends on, from the folder it was served out of.
+ *
+ * An OBJ names its .mtl, and the .mtl names its texture. When the model comes from a
+ * URL those files sit beside it, so they can be fetched rather than asked for. This is
+ * what lets a link to an .obj display with its material on any device - nothing is
+ * selected by hand, so it behaves the same on a phone as on a desktop.
+ *
+ * They are returned as File objects so the same code path that handles hand-picked
+ * companions can be reused unchanged.
+ */
+async function companionsFromUrl(objText, modelUrl) {
+  const companions = new Map();
+  const folder = modelUrl.split('?')[0].replace(/[^/]*$/, '');
+
+  const named = (line, tag) => {
+    const trimmed = line.trim();
+
+    return trimmed.startsWith(tag) ? trimmed.slice(tag.length).trim() : null;
+  };
+
+  const grab = async (name) => {
+    const leaf = String(name).split(/[\\/]/).pop();
+
+    try {
+      const response = await fetch(folder + encodeURIComponent(leaf));
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const file = new File([await response.blob()], leaf);
+
+      companions.set(leaf.toLowerCase(), file);
+
+      return file;
+    } catch {
+      return null;
+    }
+  };
+
+  const materialName = objText.split(/\r?\n/).map((line) => named(line, 'mtllib')).find(Boolean);
+
+  if (!materialName) {
+    return companions;
+  }
+
+  const materialFile = await grab(materialName);
+
+  if (!materialFile) {
+    return companions;
+  }
+
+  const textureName = (await materialFile.text())
+    .split(/\r?\n/)
+    .map((line) => named(line, 'map_Kd'))
+    .find(Boolean);
+
+  if (textureName) {
+    await grab(textureName);
+  }
+
+  return companions;
+}
+
+/** Convert a mesh served from a URL into a GLB the viewer and AR can use. */
+async function convertUrlMeshToGlbUrl(modelUrl, report = () => {}) {
+  report('reading', 0);
+
+  const response = await fetch(modelUrl);
+
+  if (!response.ok) {
+    throw new Error(`Could not fetch the model (${response.status})`);
+  }
+
+  const buffer = await response.arrayBuffer();
+  const extension = modelExtensionFromName(modelUrl.split('?')[0]);
+  const companions = extension === 'obj'
+    ? await companionsFromUrl(new TextDecoder().decode(buffer), modelUrl)
+    : new Map();
+
+  report('reading', 1);
+
+  return await glbFromBuffer(extension, buffer, companions, report);
+}
+
+/**
+ * A model URL the viewer can actually display: glTF passes through, anything else is
+ * converted first. Used for links and for the model switcher alike.
+ */
+async function viewableModelUrl(url, report = () => {}) {
+  if (typeof url !== 'string' || url.startsWith('blob:')) {
+    return url;
+  }
+
+  if (modelKindFromName(url.split('?')[0]) !== 'mesh') {
+    return url;
+  }
+
+  return await convertUrlMeshToGlbUrl(url, report);
+}
+
 async function convertLocalMeshToGlbUrl(file, _extension, companions = new Map(), report = () => {}) {
   // `report(phase, fraction, warningKey)` - a warning is shown without stopping the load.
   report('reading', 0);
 
+  const buffer = await file.arrayBuffer();
+
+  report('reading', 1);
+
+  return await glbFromBuffer(modelExtensionFromName(file.name), buffer, companions, report);
+}
+
+/**
+ * Shared conversion: build the mesh, centre it, and serialise it to a GLB blob URL.
+ *
+ * Both a hand-picked file and a model fetched from a URL end up here, so the two paths
+ * cannot drift apart in how they handle materials, colour or progress.
+ */
+async function glbFromBuffer(extension, buffer, companions, report = () => {}) {
   const [
     three,
     { STLLoader },
@@ -1246,13 +1390,6 @@ async function convertLocalMeshToGlbUrl(file, _extension, companions = new Map()
     import('three/addons/loaders/MTLLoader.js'),
     import('three/addons/exporters/GLTFExporter.js'),
   ]);
-
-  report('reading', 0.5);
-
-  const buffer = await file.arrayBuffer();
-  const extension = modelExtensionFromName(file.name);
-
-  report('reading', 1);
 
   report('parsing', 0);
   // Let the label paint before a synchronous loader takes the thread.
@@ -1276,15 +1413,14 @@ async function convertLocalMeshToGlbUrl(file, _extension, companions = new Map()
   centerObject(root, three);
   scene.add(root);
 
+  // The GLTF exporter has no progress hook, so this step is honestly indeterminate.
   report('exporting', null);
 
   const glb = await exportGlb(scene, new GLTFExporter());
 
   report('exporting', 1);
 
-  const blob = new Blob([glb], { type: 'model/gltf-binary' });
-
-  return URL.createObjectURL(blob);
+  return URL.createObjectURL(new Blob([glb], { type: 'model/gltf-binary' }));
 }
 
 function stlToObject(buffer, three, STLLoader) {
