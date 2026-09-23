@@ -266,10 +266,11 @@ test('the file picker is only relaxed on iOS, which filters by type identifier',
   const mac = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
   const android = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120';
 
-  // iOS cannot match .obj or .mtl to a known type, so an explicit list greys them out.
-  assert.equal(acceptAttributeFor(iphone, 'iPhone', 5, list), '*/*');
+  // iOS ignores extension filters, so the attribute is dropped: omitting it is the
+  // documented way to allow every type, and a wildcard is not specified to match.
+  assert.equal(acceptAttributeFor(iphone, 'iPhone', 5, list), null);
   // iPadOS claims to be a Mac; touch points are the only tell.
-  assert.equal(acceptAttributeFor(mac, 'MacIntel', 5, list), '*/*');
+  assert.equal(acceptAttributeFor(mac, 'MacIntel', 5, list), null);
 
   // Everywhere else keeps the helpful filter.
   assert.equal(acceptAttributeFor(mac, 'MacIntel', 0, list), list);

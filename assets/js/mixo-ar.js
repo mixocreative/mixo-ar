@@ -38,6 +38,8 @@ const I18N = {
     largeModel: 'This model is {size}. Converting it can take a while on a phone.',
     noUnzip: 'This browser cannot open 3MF archives. Try Chrome, Edge, or a recent Safari.',
     blocked: 'The site hosting this model does not allow other sites to read it.',
+    missingMaterial: 'This model asks for a .mtl file that was not selected, so it is shown without its material.',
+    missingMaterialIos: 'This model asks for a .mtl file that was not selected. To choose several files, tap Browse, then the ... button, then Select.',
     unsupported: 'Drop or choose a GLB, GLTF, OBJ, PLY, 3MF, or STL file. Include the .mtl and texture with an OBJ to keep its material.',
   },
   'zh-Hant': {
@@ -76,6 +78,8 @@ const I18N = {
     largeModel: '這個模型有 {size}，在手機上轉換可能需要一些時間。',
     noUnzip: '此瀏覽器無法開啟 3MF 壓縮檔。請改用 Chrome、Edge 或較新的 Safari。',
     blocked: '存放這個模型的網站不允許其他網站讀取它。',
+    missingMaterial: '這個模型需要的 .mtl 檔案未被選取，因此不顯示材質。',
+    missingMaterialIos: '這個模型需要的 .mtl 檔案未被選取。要一次選多個檔案，請點「瀏覽」，再點「…」按鈕，然後選擇「選取」。',
     unsupported: '請拖放或選擇 GLB、GLTF、OBJ、PLY、3MF 或 STL 檔案。OBJ 請連同 .mtl 與貼圖一起選取，才能保留材質。',
   },
   ja: {
@@ -114,6 +118,8 @@ const I18N = {
     largeModel: 'このモデルは {size} です。スマートフォンでは変換に時間がかかることがあります。',
     noUnzip: 'このブラウザーは 3MF を開けません。Chrome、Edge、または新しい Safari をお使いください。',
     blocked: 'このモデルを配信しているサイトが、他サイトからの読み込みを許可していません。',
+    missingMaterial: 'このモデルが必要とする .mtl ファイルが選択されていないため、マテリアルなしで表示します。',
+    missingMaterialIos: 'このモデルが必要とする .mtl ファイルが選択されていません。複数のファイルを選ぶには、「ブラウズ」→「…」→「選択」の順にタップしてください。',
     unsupported: 'GLB、GLTF、OBJ、PLY、3MF、STL ファイルをドロップまたは選択してください。OBJ は .mtl とテクスチャも一緒に選ぶとマテリアルが保持されます。',
   },
 };
@@ -650,13 +656,28 @@ export function isLargeForConversion(file) {
   return !alreadyViewable && Number(file?.size || 0) >= LARGE_MODEL_BYTES;
 }
 
+/**
+ * Which accept value the picker should use, or null meaning drop the attribute.
+ *
+ * iOS does not implement accept with filename extensions, so entries like .obj and .mtl
+ * grey those files out rather than allowing them. Its handling of media types is
+ * unreliable as well: "application/pdf" lets everything through, while
+ * "image/jpeg, application/pdf" allows only JPEG.
+ *
+ * Omitting the attribute is the documented way to allow every type. A wildcard is not
+ * specified to mean the same thing, and given the above it is not safe to assume iOS
+ * treats it that way.
+ *
+ * Only iOS is affected; everywhere else keeps the explicit list, which is what makes the
+ * picker useful there.
+ */
 export function acceptAttributeFor(userAgent, platform, maxTouchPoints, current) {
   const ua = String(userAgent || '');
   const isIosDevice = /iPad|iPhone|iPod/.test(ua);
   // iPadOS reports itself as a Mac, and is only distinguishable by touch support.
   const isIpadOS = String(platform || '') === 'MacIntel' && Number(maxTouchPoints || 0) > 1;
 
-  return isIosDevice || isIpadOS ? '*/*' : current;
+  return isIosDevice || isIpadOS ? null : current;
 }
 
 function enableLocalModelLoading(stage, state, strings, status) {
@@ -665,12 +686,18 @@ function enableLocalModelLoading(stage, state, strings, status) {
   const pickerLabels = document.querySelectorAll('label[for="model-file-input"]');
 
   if (input) {
-    input.setAttribute('accept', acceptAttributeFor(
+    const accept = acceptAttributeFor(
       navigator.userAgent,
       navigator.platform,
       navigator.maxTouchPoints,
       input.getAttribute('accept'),
-    ));
+    );
+
+    if (accept === null) {
+      input.removeAttribute('accept');
+    } else {
+      input.setAttribute('accept', accept);
+    }
   }
 
   const load = async (files) => {
@@ -1394,6 +1421,14 @@ async function convertLocalMeshToGlbUrl(file, _extension, companions = new Map()
  * Both a hand-picked file and a model fetched from a URL end up here, so the two paths
  * cannot drift apart in how they handle materials, colour or progress.
  */
+/** On iOS the multi-select control is hidden, so the advice differs by platform. */
+function missingMaterialKey() {
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1);
+
+  return ios ? 'missingMaterialIos' : 'missingMaterial';
+}
+
 async function glbFromBuffer(extension, buffer, companions, report = () => {}) {
   const [
     three,
@@ -1422,6 +1457,7 @@ async function glbFromBuffer(extension, buffer, companions, report = () => {}) {
     onParseProgress: (fraction) => report('parsing', fraction),
     onMaterialProgress: (fraction) => report('materials', fraction),
     onTextureTimeout: () => report('materials', 1, 'textureSlow'),
+    onMissingMaterial: () => report('materials', 1, missingMaterialKey()),
   });
 
   report('parsing', 1);
@@ -1460,7 +1496,16 @@ async function objToObject(buffer, three, OBJLoader, MTLLoader, companions = new
 
   // An OBJ names its .mtl, and the .mtl names its textures. Both were dropped alongside
   // the model, so a LoadingManager rewrites those relative names onto the blobs we hold.
-  const materialFile = findCompanion(companions, text.match(/^\s*mtllib\s+(.+)$/m)?.[1], 'mtl');
+  const declaredMaterial = text.match(/^\s*mtllib\s+(.+)$/m)?.[1] || null;
+  const materialFile = findCompanion(companions, declaredMaterial, 'mtl');
+
+  // The OBJ asked for a material that was not in the selection. Say so, because the
+  // model will look untextured and the cause is not obvious - especially on iOS, where
+  // choosing several files at once is hidden behind Browse, then the "..." menu, then
+  // Select.
+  if (declaredMaterial && !materialFile) {
+    hooks.onMissingMaterial?.();
+  }
 
   let texturesReady = Promise.resolve({ timedOut: false });
 
@@ -1807,6 +1852,7 @@ async function meshObjectFor(extension, buffer, deps) {
   return objToObject(buffer, three, OBJLoader, MTLLoader, companions, {
     onMaterialProgress: deps.onMaterialProgress,
     onTextureTimeout: deps.onTextureTimeout,
+    onMissingMaterial: deps.onMissingMaterial,
   });
 }
 

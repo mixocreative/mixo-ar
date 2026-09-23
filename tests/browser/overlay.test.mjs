@@ -174,14 +174,30 @@ test('a corrupt model reports a failure instead of hanging or crashing', async (
   await page.close();
 });
 
-test('an OBJ chosen without its .mtl still loads', async () => {
+test('an OBJ chosen without its .mtl still loads, and says why it looks plain', async () => {
   const { page, errors } = await openViewer(`${origin}/index.html?model=./assets/ar/fallback.glb`);
+  const said = [];
+
+  // The advice appears during loading, so capture it rather than reading the end state.
+  await page.exposeFunction('noteStatus', (text) => said.push(text));
+  await page.evaluate(() => {
+    const status = document.querySelector('.ar-status');
+
+    new MutationObserver(() => window.noteStatus(status.textContent || '')).observe(
+      status,
+      { childList: true, characterData: true, subtree: true },
+    );
+  });
 
   await page.setInputFiles('#model-file-input', join(root, 'tests', 'fixtures', 'quad.obj'));
   await page.waitForFunction(() => document.querySelector('model-viewer')?.loaded === true, null, { timeout: 30000 });
   await page.waitForTimeout(1200);
 
-  assert.deepEqual(errors, [], 'a missing companion is not an error, just no texture');
+  assert.deepEqual(errors, [], 'a missing companion is not an error, just no material');
+  assert.ok(
+    said.some((text) => /was not selected|未被選取|選択されていません/.test(text)),
+    `the missing .mtl should be explained, saw: ${said.slice(-3).join(' | ')}`,
+  );
   assert.equal(await overlayVisible(page), false);
   await page.close();
 });
