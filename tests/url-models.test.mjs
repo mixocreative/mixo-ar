@@ -114,8 +114,13 @@ test('standalone page has a mobile file picker for local model loading', async (
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
   assert.match(html, /id="model-file-input"/);
-  assert.match(html, /accept="\.glb,\.gltf,\.stl,\.obj"/);
   assert.match(html, /for="model-file-input"/);
+  assert.match(html, /multiple/);
+
+  // An OBJ needs its .mtl and texture selected alongside it to keep its material.
+  for (const accepted of ['.glb', '.gltf', '.stl', '.obj', '.mtl', '.png', '.jpg']) {
+    assert.ok(html.includes(accepted), `the picker should accept ${accepted}`);
+  }
 });
 
 test('standalone page uses only the plus tool for local loading', async () => {

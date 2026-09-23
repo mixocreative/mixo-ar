@@ -29,7 +29,7 @@ const I18N = {
     alt: 'A 3D model. Drag to turn it.',
     models: 'Which model',
     localLoading: 'Loading local model...',
-    unsupported: 'Drop or choose a GLB, GLTF, STL, or OBJ file.',
+    unsupported: 'Drop or choose a GLB, GLTF, STL, or OBJ file. Include the .mtl and texture with an OBJ to keep its material.',
   },
   'zh-Hant': {
     title: 'mixocreative · 3D/AR',
@@ -58,7 +58,7 @@ const I18N = {
     alt: '3D 模型。拖曳即可旋轉。',
     models: '選擇模型',
     localLoading: '本機模型載入中...',
-    unsupported: '請拖放或選擇 GLB、GLTF、STL 或 OBJ 檔案。',
+    unsupported: '請拖放或選擇 GLB、GLTF、STL 或 OBJ 檔案。OBJ 請連同 .mtl 與貼圖一起選取，才能保留材質。',
   },
   ja: {
     title: 'mixocreative · 3D/AR',
@@ -87,7 +87,7 @@ const I18N = {
     alt: '3D モデル。ドラッグして回転できます。',
     models: 'モデルを選択',
     localLoading: 'ローカルモデルを読み込んでいます...',
-    unsupported: 'GLB、GLTF、STL、OBJ ファイルをドロップまたは選択してください。',
+    unsupported: 'GLB、GLTF、STL、OBJ ファイルをドロップまたは選択してください。OBJ は .mtl とテクスチャも一緒に選ぶとマテリアルが保持されます。',
   },
 };
 
@@ -646,24 +646,60 @@ function enableLocalModelLoading(stage, state, strings, status) {
   });
 }
 
+/**
+ * Group dropped files into models plus the companion files they depend on.
+ *
+ * An OBJ is not self-contained: it names a .mtl, which in turn names a texture. Dropping
+ * all three used to produce one untextured model and two ignored files, so the material
+ * was silently lost. Companions are matched to the model sharing their base name; when a
+ * single model is dropped every companion belongs to it.
+ */
+export function groupDroppedFiles(files) {
+  const all = Array.from(files || []);
+  const models = all.filter((file) => modelKindFromName(file.name) !== null);
+  const companions = all.filter((file) => modelKindFromName(file.name) === null);
+
+  return models.map((model) => {
+    const stem = fileStem(model.name);
+    const mine = companions.filter((companion) => (
+      models.length === 1 || fileStem(companion.name).startsWith(stem)
+    ));
+
+    return {
+      model,
+      companions: new Map(mine.map((companion) => [companion.name.toLowerCase(), companion])),
+    };
+  });
+}
+
 export async function modelsFromDroppedFiles(files, options = {}) {
   const createObjectURL = options.createObjectURL;
   const convertMeshToGlbUrl = options.convertMeshToGlbUrl;
   const models = [];
 
-  for (const file of Array.from(files || [])) {
-    const kind = modelKindFromName(file.name);
+  for (const { model, companions } of groupDroppedFiles(files)) {
+    const kind = modelKindFromName(model.name);
 
     if (kind === 'viewer' && createObjectURL) {
-      models.push(localModel(createObjectURL(file), file));
+      models.push(localModel(createObjectURL(model), model));
     }
 
     if (kind === 'mesh' && convertMeshToGlbUrl) {
-      models.push(localModel(await convertMeshToGlbUrl(file, modelExtensionFromName(file.name)), file));
+      models.push(localModel(
+        await convertMeshToGlbUrl(model, modelExtensionFromName(model.name), companions),
+        model,
+      ));
     }
   }
 
   return models;
+}
+
+function fileStem(name) {
+  const base = String(name || '').split(/[\/]/).pop();
+  const dot = base.lastIndexOf('.');
+
+  return (dot === -1 ? base : base.slice(0, dot)).toLowerCase();
 }
 
 export function modelKindFromName(name) {
@@ -694,23 +730,25 @@ function localModel(url, file) {
   };
 }
 
-async function convertLocalMeshToGlbUrl(file) {
+async function convertLocalMeshToGlbUrl(file, _extension, companions = new Map()) {
   const [
     three,
     { STLLoader },
     { OBJLoader },
+    { MTLLoader },
     { GLTFExporter },
   ] = await Promise.all([
     import('three'),
     import('three/addons/loaders/STLLoader.js'),
     import('three/addons/loaders/OBJLoader.js'),
+    import('three/addons/loaders/MTLLoader.js'),
     import('three/addons/exporters/GLTFExporter.js'),
   ]);
   const buffer = await file.arrayBuffer();
   const extension = modelExtensionFromName(file.name);
   const root = extension === 'stl'
     ? stlToObject(buffer, three, STLLoader)
-    : objToObject(buffer, three, OBJLoader);
+    : await objToObject(buffer, three, OBJLoader, MTLLoader, companions);
   const scene = new three.Scene();
 
   centerObject(root, three);
@@ -732,10 +770,64 @@ function stlToObject(buffer, three, STLLoader) {
   );
 }
 
-function objToObject(buffer, three, OBJLoader) {
+async function objToObject(buffer, three, OBJLoader, MTLLoader, companions = new Map()) {
   const text = new TextDecoder().decode(buffer);
-  const object = new OBJLoader().parse(text);
-  const material = new three.MeshStandardMaterial({
+  const loader = new OBJLoader();
+  const blobUrls = [];
+
+  // An OBJ names its .mtl, and the .mtl names its textures. Both were dropped alongside
+  // the model, so a LoadingManager rewrites those relative names onto the blobs we hold.
+  const materialFile = findCompanion(companions, text.match(/^\s*mtllib\s+(.+)$/m)?.[1], 'mtl');
+
+  let texturesReady = Promise.resolve();
+
+  if (materialFile) {
+    const manager = new three.LoadingManager();
+    let startedLoading = false;
+
+    manager.onStart = () => {
+      startedLoading = true;
+    };
+
+    manager.setURLModifier((url) => {
+      const companion = findCompanion(companions, url);
+
+      if (!companion) {
+        return url;
+      }
+
+      const blobUrl = URL.createObjectURL(companion);
+      blobUrls.push(blobUrl);
+
+      return blobUrl;
+    });
+
+    const settled = new Promise((resolve) => {
+      manager.onLoad = resolve;
+      manager.onError = resolve;
+    });
+
+    try {
+      const materials = new MTLLoader(manager).parse(await materialFile.text(), '');
+
+      // preload() kicks off the texture requests synchronously.
+      materials.preload();
+      loader.setMaterials(materials);
+
+      // The GLTF exporter reads pixels out of the texture images, so exporting before
+      // they finish decoding fails with "No valid image data found".
+      if (startedLoading) {
+        texturesReady = Promise.race([settled, delay(TEXTURE_LOAD_TIMEOUT_MS)]);
+      }
+    } catch (failure) {
+      console.warn('The .mtl file could not be applied', failure);
+    }
+  }
+
+  const object = loader.parse(text);
+
+  await texturesReady;
+  const fallback = new three.MeshStandardMaterial({
     color: 0xb8b8b8,
     roughness: 0.75,
     metalness: 0.05,
@@ -744,11 +836,47 @@ function objToObject(buffer, three, OBJLoader) {
 
   object.traverse((child) => {
     if (child.isMesh && !child.material) {
-      child.material = material;
+      child.material = fallback;
     }
   });
 
+  // The exporter reads the textures back, so the blobs must outlive this function.
+  if (blobUrls.length > 0) {
+    setTimeout(() => blobUrls.forEach((url) => URL.revokeObjectURL(url)), 60000);
+  }
+
   return object;
+}
+
+const TEXTURE_LOAD_TIMEOUT_MS = 10000;
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function findCompanion(companions, name, extension) {
+  if (!companions || companions.size === 0) {
+    return null;
+  }
+
+  if (name) {
+    const base = String(name).trim().split(/[\/]/).pop().toLowerCase();
+    const direct = companions.get(base);
+
+    if (direct) {
+      return direct;
+    }
+  }
+
+  if (extension) {
+    for (const [key, companion] of companions) {
+      if (key.endsWith(`.${extension}`)) {
+        return companion;
+      }
+    }
+  }
+
+  return null;
 }
 
 function centerObject(object, three) {
