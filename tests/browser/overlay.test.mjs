@@ -195,7 +195,7 @@ test('an OBJ chosen without its .mtl still loads, and says why it looks plain', 
 
   assert.deepEqual(errors, [], 'a missing companion is not an error, just no material');
   assert.ok(
-    said.some((text) => /was not selected|未被選取|選択されていません/.test(text)),
+    said.some((text) => /was not included|未被包含|含まれていない/.test(text)),
     `the missing .mtl should be explained, saw: ${said.slice(-3).join(' | ')}`,
   );
   assert.equal(await overlayVisible(page), false);
@@ -329,4 +329,34 @@ test('a cross-domain model without CORS fails visibly instead of hanging', async
   } finally {
     await new Promise((resolve) => other.close(resolve));
   }
+});
+
+test('one zip holding an OBJ, its mtl and texture loads as a textured model', async () => {
+  // A browser cannot read a file the user did not pick, so an archive is the only way
+  // to bring a model and its dependencies in with a single choice - which is what makes
+  // this work on a phone, where multi-select is hidden behind a menu.
+  const { page, errors } = await openViewer(`${origin}/index.html?model=./assets/ar/fallback.glb`);
+  const said = [];
+
+  await page.exposeFunction('noteStatus', (text) => said.push(text));
+  await page.evaluate(() => {
+    const status = document.querySelector('.ar-status');
+
+    new MutationObserver(() => window.noteStatus(status.textContent || '')).observe(
+      status,
+      { childList: true, characterData: true, subtree: true },
+    );
+  });
+
+  await page.setInputFiles('#model-file-input', join(root, 'tests', 'fixtures', 'quad_bundle.zip'));
+  await page.waitForFunction(() => document.querySelector('model-viewer')?.loaded === true, null, { timeout: 40000 });
+  await page.waitForTimeout(1500);
+
+  assert.deepEqual(errors, []);
+  assert.ok(
+    !said.some((text) => /was not included|未被包含|含まれていない/.test(text)),
+    'the material came from the archive, so nothing should be reported missing',
+  );
+  assert.equal(await overlayVisible(page), false);
+  await page.close();
 });

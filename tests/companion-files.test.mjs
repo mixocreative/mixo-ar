@@ -84,3 +84,24 @@ test('a local selection yields one model even when several are picked', async ()
   assert.equal(models.length, 1, 'one model at a time from the device');
   assert.equal(models[0].filename, 'first.obj');
 });
+
+test('a zip is expanded into the files it holds', async () => {
+  const { expandArchives } = await import('../assets/js/mixo-ar.js');
+  const zip = { name: 'bundle.zip', arrayBuffer: async () => new ArrayBuffer(8) };
+
+  const expanded = await expandArchives([zip], {
+    listZipEntries: async () => ([
+      { name: 'quad/quad.obj', data: new Uint8Array([1]) },
+      { name: 'quad/quad.mtl', data: new Uint8Array([2]) },
+    ]),
+  });
+
+  assert.deepEqual(expanded.map((file) => file.name), ['quad.obj', 'quad.mtl']);
+});
+
+test('files that are not archives pass through untouched', async () => {
+  const { expandArchives } = await import('../assets/js/mixo-ar.js');
+  const plain = { name: 'model.obj' };
+
+  assert.deepEqual(await expandArchives([plain], {}), [plain]);
+});

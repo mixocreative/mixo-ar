@@ -1,3 +1,5 @@
+import { listZipEntries } from './zip-entries.js';
+
 const stage = typeof document === 'undefined' ? null : document.querySelector('[data-mixo-ar]');
 const LANGUAGE_STORAGE_KEY = 'mixo-ar-language';
 const LOCALE_ORDER = ['en', 'zh-Hant', 'ja'];
@@ -38,9 +40,8 @@ const I18N = {
     largeModel: 'This model is {size}. Converting it can take a while on a phone.',
     noUnzip: 'This browser cannot open 3MF archives. Try Chrome, Edge, or a recent Safari.',
     blocked: 'The site hosting this model does not allow other sites to read it.',
-    missingMaterial: 'This model asks for a .mtl file that was not selected, so it is shown without its material.',
-    missingMaterialIos: 'This model asks for a .mtl file that was not selected. To choose several files, tap Browse, then the ... button, then Select.',
-    unsupported: 'Drop or choose a GLB, GLTF, OBJ, PLY, 3MF, or STL file. Include the .mtl and texture with an OBJ to keep its material.',
+    missingMaterial: 'This model needs a .mtl file that was not included, so it is shown without its material. Put the model, its .mtl and its texture in a .zip and choose that instead.',
+    unsupported: 'Drop or choose a GLB, GLTF, OBJ, PLY, 3MF, or STL file, or a .zip holding a model with its .mtl and texture.',
   },
   'zh-Hant': {
     title: 'mixocreative · 3D/AR',
@@ -78,9 +79,8 @@ const I18N = {
     largeModel: '這個模型有 {size}，在手機上轉換可能需要一些時間。',
     noUnzip: '此瀏覽器無法開啟 3MF 壓縮檔。請改用 Chrome、Edge 或較新的 Safari。',
     blocked: '存放這個模型的網站不允許其他網站讀取它。',
-    missingMaterial: '這個模型需要的 .mtl 檔案未被選取，因此不顯示材質。',
-    missingMaterialIos: '這個模型需要的 .mtl 檔案未被選取。要一次選多個檔案，請點「瀏覽」，再點「…」按鈕，然後選擇「選取」。',
-    unsupported: '請拖放或選擇 GLB、GLTF、OBJ、PLY、3MF 或 STL 檔案。OBJ 請連同 .mtl 與貼圖一起選取，才能保留材質。',
+    missingMaterial: '這個模型需要的 .mtl 檔案未被包含，因此不顯示材質。請將模型、.mtl 與貼圖壓縮成 .zip，再選擇那個檔案。',
+    unsupported: '請拖放或選擇 GLB、GLTF、OBJ、PLY、3MF 或 STL 檔案，或包含模型與 .mtl、貼圖的 .zip。',
   },
   ja: {
     title: 'mixocreative · 3D/AR',
@@ -118,9 +118,8 @@ const I18N = {
     largeModel: 'このモデルは {size} です。スマートフォンでは変換に時間がかかることがあります。',
     noUnzip: 'このブラウザーは 3MF を開けません。Chrome、Edge、または新しい Safari をお使いください。',
     blocked: 'このモデルを配信しているサイトが、他サイトからの読み込みを許可していません。',
-    missingMaterial: 'このモデルが必要とする .mtl ファイルが選択されていないため、マテリアルなしで表示します。',
-    missingMaterialIos: 'このモデルが必要とする .mtl ファイルが選択されていません。複数のファイルを選ぶには、「ブラウズ」→「…」→「選択」の順にタップしてください。',
-    unsupported: 'GLB、GLTF、OBJ、PLY、3MF、STL ファイルをドロップまたは選択してください。OBJ は .mtl とテクスチャも一緒に選ぶとマテリアルが保持されます。',
+    missingMaterial: 'このモデルが必要とする .mtl ファイルが含まれていないため、マテリアルなしで表示します。モデルと .mtl、テクスチャを .zip にまとめて選んでください。',
+    unsupported: 'GLB、GLTF、OBJ、PLY、3MF、STL ファイル、またはモデルと .mtl・テクスチャを含む .zip をドロップまたは選択してください。',
   },
 };
 
@@ -852,12 +851,39 @@ export function groupDroppedFiles(files) {
  * extra files in a selection are an OBJ's .mtl and texture, not more models. Lists of
  * several models come from the URL, where they can also be hosted elsewhere.
  */
+/**
+ * Expand a selected .zip into the files it holds.
+ *
+ * Picking one archive is the only way to bring an OBJ and its .mtl and texture together
+ * in a single choice, which is what makes this usable on a phone.
+ */
+export async function expandArchives(files, options = {}) {
+  const read = options.listZipEntries || listZipEntries;
+  const expanded = [];
+
+  for (const file of Array.from(files || [])) {
+    if (!String(file.name || '').toLowerCase().endsWith('.zip')) {
+      expanded.push(file);
+      continue;
+    }
+
+    const entries = await read(await file.arrayBuffer());
+
+    for (const entry of entries) {
+      expanded.push(new File([entry.data], String(entry.name).split('/').pop()));
+    }
+  }
+
+  return expanded;
+}
+
 export async function modelsFromDroppedFiles(files, options = {}) {
   const createObjectURL = options.createObjectURL;
   const convertMeshToGlbUrl = options.convertMeshToGlbUrl;
   const models = [];
+  const selected = await expandArchives(files, options);
 
-  for (const { model, companions } of groupDroppedFiles(files).slice(0, 1)) {
+  for (const { model, companions } of groupDroppedFiles(selected).slice(0, 1)) {
     const kind = modelKindFromName(model.name);
 
     if (kind === 'viewer' && createObjectURL) {
@@ -1421,14 +1447,6 @@ async function convertLocalMeshToGlbUrl(file, _extension, companions = new Map()
  * Both a hand-picked file and a model fetched from a URL end up here, so the two paths
  * cannot drift apart in how they handle materials, colour or progress.
  */
-/** On iOS the multi-select control is hidden, so the advice differs by platform. */
-function missingMaterialKey() {
-  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent)
-    || (navigator.platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1);
-
-  return ios ? 'missingMaterialIos' : 'missingMaterial';
-}
-
 async function glbFromBuffer(extension, buffer, companions, report = () => {}) {
   const [
     three,
@@ -1457,7 +1475,7 @@ async function glbFromBuffer(extension, buffer, companions, report = () => {}) {
     onParseProgress: (fraction) => report('parsing', fraction),
     onMaterialProgress: (fraction) => report('materials', fraction),
     onTextureTimeout: () => report('materials', 1, 'textureSlow'),
-    onMissingMaterial: () => report('materials', 1, missingMaterialKey()),
+    onMissingMaterial: () => report('materials', 1, 'missingMaterial'),
   });
 
   report('parsing', 1);
