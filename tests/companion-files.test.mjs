@@ -105,3 +105,30 @@ test('files that are not archives pass through untouched', async () => {
 
   assert.deepEqual(await expandArchives([plain], {}), [plain]);
 });
+
+test('a zip can carry any supported model, not only an obj', async () => {
+  const { expandArchives, groupDroppedFiles } = await import('../assets/js/mixo-ar.js');
+  const zip = { name: 'bundle.zip', arrayBuffer: async () => new ArrayBuffer(8) };
+
+  const expanded = await expandArchives([zip], {
+    listZipEntries: async () => ([
+      { name: 'scan/tetra.ply', data: new Uint8Array([1]) },
+      { name: 'scan/readme.txt', data: new Uint8Array([2]) },
+    ]),
+  });
+  const groups = groupDroppedFiles(expanded);
+
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].model.name, 'tetra.ply');
+});
+
+test('an archive that holds no model yields nothing to show', async () => {
+  const { expandArchives, groupDroppedFiles } = await import('../assets/js/mixo-ar.js');
+  const zip = { name: 'empty.zip', arrayBuffer: async () => new ArrayBuffer(8) };
+
+  const expanded = await expandArchives([zip], {
+    listZipEntries: async () => ([{ name: 'notes.txt', data: new Uint8Array([1]) }]),
+  });
+
+  assert.deepEqual(groupDroppedFiles(expanded), [], 'nothing is treated as a model');
+});

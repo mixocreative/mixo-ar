@@ -399,3 +399,41 @@ test('opening a folder finds the model, its mtl and its texture on its own', asy
   assert.equal(await overlayVisible(page), false);
   await page.close();
 });
+
+test('a stored zip opens without needing decompression support', async () => {
+  // Archives written without compression need no DecompressionStream, so this path
+  // works even on browsers that lack it.
+  const { page, errors } = await openViewer(`${origin}/index.html?model=./assets/ar/fallback.glb`);
+  const said = [];
+
+  await page.exposeFunction('noteStatus', (text) => said.push(text));
+  await page.evaluate(() => {
+    const status = document.querySelector('.ar-status');
+
+    new MutationObserver(() => window.noteStatus(status.textContent || '')).observe(
+      status,
+      { childList: true, characterData: true, subtree: true },
+    );
+  });
+
+  await page.setInputFiles('#model-file-input', join(root, 'tests', 'fixtures', 'quad_stored.zip'));
+  await page.waitForFunction(() => document.querySelector('model-viewer')?.loaded === true, null, { timeout: 40000 });
+  await page.waitForTimeout(1500);
+
+  assert.deepEqual(errors, []);
+  assert.ok(
+    !said.some((text) => /was not included|未被包含|含まれていない/.test(text)),
+    'the material came out of the archive',
+  );
+  await page.close();
+});
+
+test('a zip is offered by the file picker on every platform', async () => {
+  const { page } = await openViewer(`${origin}/index.html?model=./assets/ar/fallback.glb`);
+
+  const accept = await page.evaluate(() => document.getElementById('model-file-input')?.getAttribute('accept') || '');
+
+  // Desktop keeps the explicit list; iOS drops the attribute entirely, which allows all.
+  assert.ok(accept === '' || accept.includes('.zip'), `zip should be selectable, accept was: ${accept}`);
+  await page.close();
+});
