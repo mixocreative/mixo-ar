@@ -112,14 +112,28 @@ test('standalone page links generated favicon assets', async () => {
 
 test('standalone page has a mobile file picker for local model loading', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const input = /<input\b[^>]*id="model-file-input"[^>]*>/.exec(html);
 
-  assert.match(html, /id="model-file-input"/);
+  assert.ok(input, 'the file input is on the page');
   assert.match(html, /for="model-file-input"/);
-  assert.match(html, /multiple/);
 
-  // An OBJ needs its .mtl and texture selected alongside it to keep its material.
-  for (const accepted of ['.glb', '.gltf', '.stl', '.obj', '.mtl', '.png', '.jpg']) {
-    assert.ok(html.includes(accepted), `the picker should accept ${accepted}`);
+  // Several files at once, because an OBJ needs its .mtl and texture with it.
+  assert.match(input[0], /\bmultiple\b/, 'the picker takes more than one file');
+
+  // Read the attribute itself rather than searching the whole document: ".png" also
+  // appears in the favicon links, so a substring check would pass for the wrong reason.
+  const accept = /accept="([^"]*)"/.exec(input[0]);
+
+  assert.ok(accept, 'the file input declares which types it accepts');
+
+  const accepted = new Set(accept[1].split(',').map((entry) => entry.trim().toLowerCase()));
+
+  for (const model of ['.glb', '.gltf', '.obj', '.ply', '.3mf', '.stl']) {
+    assert.ok(accepted.has(model), `the picker should accept ${model}`);
+  }
+
+  for (const companion of ['.mtl', '.png', '.jpg']) {
+    assert.ok(accepted.has(companion), `an OBJ's ${companion} companion should be selectable`);
   }
 });
 
