@@ -5,6 +5,8 @@ import test from 'node:test';
 import {
   acceptAttributeFor,
   arPreviewMode,
+  isLargeForConversion,
+  LARGE_MODEL_BYTES,
   detectLocale,
   modelKindFromName,
   modelsFromDroppedFiles,
@@ -269,4 +271,15 @@ test('the file picker is only relaxed on iOS, which filters by type identifier',
   // Everywhere else keeps the helpful filter.
   assert.equal(acceptAttributeFor(mac, 'MacIntel', 0, list), list);
   assert.equal(acceptAttributeFor(android, 'Linux armv8l', 5, list), list);
+});
+
+test('only a large file that needs converting is called heavy', () => {
+  const big = LARGE_MODEL_BYTES + 1;
+
+  assert.equal(isLargeForConversion({ name: 'huge.obj', size: big }), true);
+  assert.equal(isLargeForConversion({ name: 'huge.ply', size: big }), true);
+
+  // A GLB is handed straight to the viewer, so its size is not our warning to give.
+  assert.equal(isLargeForConversion({ name: 'huge.glb', size: big }), false);
+  assert.equal(isLargeForConversion({ name: 'small.obj', size: 1024 }), false);
 });

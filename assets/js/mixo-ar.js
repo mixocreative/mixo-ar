@@ -35,6 +35,7 @@ const I18N = {
     phase_exporting: 'Preparing it for viewing...',
     phase_displaying: 'Loading the model...',
     textureSlow: 'A texture took too long to load, so the model is shown without it.',
+    largeModel: 'This model is {size}. Converting it can take a while on a phone.',
     noUnzip: 'This browser cannot open 3MF archives. Try Chrome, Edge, or a recent Safari.',
     unsupported: 'Drop or choose a GLB, GLTF, OBJ, PLY, 3MF, or STL file. Include the .mtl and texture with an OBJ to keep its material.',
   },
@@ -71,6 +72,7 @@ const I18N = {
     phase_exporting: '正在準備顯示…',
     phase_displaying: '模型載入中…',
     textureSlow: '貼圖載入逾時，改以無貼圖方式顯示。',
+    largeModel: '這個模型有 {size}，在手機上轉換可能需要一些時間。',
     noUnzip: '此瀏覽器無法開啟 3MF 壓縮檔。請改用 Chrome、Edge 或較新的 Safari。',
     unsupported: '請拖放或選擇 GLB、GLTF、OBJ、PLY、3MF 或 STL 檔案。OBJ 請連同 .mtl 與貼圖一起選取，才能保留材質。',
   },
@@ -107,6 +109,7 @@ const I18N = {
     phase_exporting: '表示の準備をしています…',
     phase_displaying: 'モデルを読み込んでいます…',
     textureSlow: 'テクスチャの読み込みに時間がかかったため、テクスチャなしで表示します。',
+    largeModel: 'このモデルは {size} です。スマートフォンでは変換に時間がかかることがあります。',
     noUnzip: 'このブラウザーは 3MF を開けません。Chrome、Edge、または新しい Safari をお使いください。',
     unsupported: 'GLB、GLTF、OBJ、PLY、3MF、STL ファイルをドロップまたは選択してください。OBJ は .mtl とテクスチャも一緒に選ぶとマテリアルが保持されます。',
   },
@@ -604,6 +607,20 @@ function openSheets() {
  * Only iOS is relaxed. Every other platform keeps the explicit list, which is what makes
  * the picker helpful there.
  */
+/**
+ * Converting a large mesh on a phone takes real time and memory, and the work happens
+ * before anything can be shown. Warn instead of appearing to hang.
+ */
+export const LARGE_MODEL_BYTES = 8 * 1024 * 1024;
+
+export function isLargeForConversion(file) {
+  const name = String(file?.name || '').toLowerCase();
+  const alreadyViewable = name.endsWith('.glb') || name.endsWith('.gltf');
+
+  // GLB needs no conversion, so its size is the browser's problem, not ours.
+  return !alreadyViewable && Number(file?.size || 0) >= LARGE_MODEL_BYTES;
+}
+
 export function acceptAttributeFor(userAgent, platform, maxTouchPoints, current) {
   const ua = String(userAgent || '');
   const isIosDevice = /iPad|iPhone|iPod/.test(ua);
@@ -632,6 +649,13 @@ function enableLocalModelLoading(stage, state, strings, status) {
     status.hidden = false;
 
     let warning = '';
+
+    const heavy = [...(files || [])].find((file) => isLargeForConversion(file));
+
+    if (heavy) {
+      warning = (strings.largeModel || '').replace('{size}', formatBytes(heavy.size));
+    }
+
     const report = (phase, fraction, warningKey) => {
       if (warningKey) {
         warning = strings[warningKey] || '';
