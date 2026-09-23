@@ -35,8 +35,8 @@ test('PLY and 3MF are recognised as meshes', () => {
   assert.equal(modelKindFromName('model.3mf'), 'mesh');
 });
 
-test('parses an ASCII PLY with per-vertex colour', () => {
-  const mesh = parsePlyMesh(PLY);
+test('parses an ASCII PLY with per-vertex colour', async () => {
+  const mesh = await parsePlyMesh(PLY);
 
   assert.equal(mesh.positions.length, 12);
   assert.deepEqual([...mesh.indices], [0, 1, 2, 0, 2, 3]);
@@ -45,30 +45,30 @@ test('parses an ASCII PLY with per-vertex colour', () => {
   assert.ok(Math.abs(mesh.colors[1]) < 1e-6);
 });
 
-test('a PLY without colour still parses', () => {
+test('a PLY without colour still parses', async () => {
   const plain = PLY
     .replace(/property uchar (red|green|blue)\n/g, '')
     .split('\n')
     .map((line) => (/^-?\d+ -?\d+ -?\d+ /.test(line) ? line.split(' ').slice(0, 3).join(' ') : line))
     .join('\n');
 
-  const mesh = parsePlyMesh(plain);
+  const mesh = await parsePlyMesh(plain);
 
   assert.equal(mesh.positions.length, 12);
   assert.equal(mesh.colors, null);
 });
 
-test('triangulates PLY faces with more than three corners', () => {
+test('triangulates PLY faces with more than three corners', async () => {
   const quad = PLY
     .replace('element face 2', 'element face 1')
     .replace('3 0 1 2\n3 0 2 3', '4 0 1 2 3');
 
-  const mesh = parsePlyMesh(quad);
+  const mesh = await parsePlyMesh(quad);
 
   assert.deepEqual([...mesh.indices], [0, 1, 2, 0, 2, 3]);
 });
 
-test('parses the mesh out of a 3MF model document', () => {
+test('parses the mesh out of a 3MF model document', async () => {
   const xml = `<?xml version="1.0"?><model><resources><object><mesh>
     <vertices>
       <vertex x="0" y="0" z="0" /><vertex x="1" y="0" z="0" /><vertex x="0" y="1" z="0" />
@@ -76,7 +76,7 @@ test('parses the mesh out of a 3MF model document', () => {
     <triangles><triangle v1="0" v2="1" v3="2" /></triangles>
   </mesh></object></resources></model>`;
 
-  const mesh = parse3mfModelXml(xml);
+  const mesh = await parse3mfModelXml(xml);
 
   assert.deepEqual([...mesh.positions], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
   assert.deepEqual([...mesh.indices], [0, 1, 2]);
@@ -88,7 +88,7 @@ test('reads the model document out of a real 3MF archive', async () => {
 
   assert.ok(xml.includes('<vertex'), 'the archive entry was inflated');
 
-  const mesh = parse3mfModelXml(xml);
+  const mesh = await parse3mfModelXml(xml);
 
   assert.equal(mesh.positions.length, 15, 'five vertices');
   assert.equal(mesh.indices.length, 18, 'six triangles');

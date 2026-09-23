@@ -29,6 +29,13 @@ const I18N = {
     alt: 'A 3D model. Drag to turn it.',
     models: 'Which model',
     localLoading: 'Loading local model...',
+    phase_reading: 'Reading the file...',
+    phase_parsing: 'Reading the geometry...',
+    phase_materials: 'Loading materials and textures...',
+    phase_exporting: 'Preparing it for viewing...',
+    phase_displaying: 'Loading the model...',
+    textureSlow: 'A texture took too long to load, so the model is shown without it.',
+    noUnzip: 'This browser cannot open 3MF archives. Try Chrome, Edge, or a recent Safari.',
     unsupported: 'Drop or choose a GLB, GLTF, OBJ, PLY, 3MF, or STL file. Include the .mtl and texture with an OBJ to keep its material.',
   },
   'zh-Hant': {
@@ -58,6 +65,13 @@ const I18N = {
     alt: '3D 模型。拖曳即可旋轉。',
     models: '選擇模型',
     localLoading: '本機模型載入中...',
+    phase_reading: '正在讀取檔案…',
+    phase_parsing: '正在讀取幾何資料…',
+    phase_materials: '正在載入材質與貼圖…',
+    phase_exporting: '正在準備顯示…',
+    phase_displaying: '模型載入中…',
+    textureSlow: '貼圖載入逾時，改以無貼圖方式顯示。',
+    noUnzip: '此瀏覽器無法開啟 3MF 壓縮檔。請改用 Chrome、Edge 或較新的 Safari。',
     unsupported: '請拖放或選擇 GLB、GLTF、OBJ、PLY、3MF 或 STL 檔案。OBJ 請連同 .mtl 與貼圖一起選取，才能保留材質。',
   },
   ja: {
@@ -87,6 +101,13 @@ const I18N = {
     alt: '3D モデル。ドラッグして回転できます。',
     models: 'モデルを選択',
     localLoading: 'ローカルモデルを読み込んでいます...',
+    phase_reading: 'ファイルを読み込んでいます…',
+    phase_parsing: '形状データを読み込んでいます…',
+    phase_materials: 'マテリアルとテクスチャを読み込んでいます…',
+    phase_exporting: '表示の準備をしています…',
+    phase_displaying: 'モデルを読み込んでいます…',
+    textureSlow: 'テクスチャの読み込みに時間がかかったため、テクスチャなしで表示します。',
+    noUnzip: 'このブラウザーは 3MF を開けません。Chrome、Edge、または新しい Safari をお使いください。',
     unsupported: 'GLB、GLTF、OBJ、PLY、3MF、STL ファイルをドロップまたは選択してください。OBJ は .mtl とテクスチャも一緒に選ぶとマテリアルが保持されます。',
   },
 };
@@ -467,8 +488,12 @@ function mount(stage, status, strings, models, isFallback, message) {
       return;
     }
 
+    // Displaying is the final phase of the bar, so a local conversion does not jump
+    // back to a small number once the converted GLB starts loading.
+    const overall = phaseProgress('displaying', total);
+
     status.hidden = false;
-    say(status, standing, isFallback ? strings.fallback : '', Math.round(total * 100) + '%');
+    say(status, standing, isFallback ? strings.fallback : '', Math.round(overall * 100) + '%', overall);
   });
 
   viewer.addEventListener('load', () => {
@@ -577,13 +602,33 @@ function enableLocalModelLoading(stage, state, strings, status) {
   const pickerLabels = document.querySelectorAll('label[for="model-file-input"]');
 
   const load = async (files) => {
-    say(status, strings.localLoading || 'Loading local model...');
+    say(status, strings.localLoading || 'Loading local model...', '', '0%', 0);
     status.hidden = false;
+
+    let warning = '';
+    const report = (phase, fraction, warningKey) => {
+      if (warningKey) {
+        warning = strings[warningKey] || '';
+      }
+
+      const label = strings[`phase_${phase}`] || strings.localLoading || 'Loading local model...';
+
+      if (fraction === null) {
+        say(status, label, warning, '', null);
+
+        return;
+      }
+
+      const overall = phaseProgress(phase, fraction);
+
+      say(status, label, warning, Math.round(overall * 100) + '%', overall);
+    };
 
     try {
       const models = await modelsFromDroppedFiles(files, {
         createObjectURL: (file) => URL.createObjectURL(file),
         convertMeshToGlbUrl: convertLocalMeshToGlbUrl,
+        onProgress: report,
       });
 
       if (models.length === 0) {
@@ -595,7 +640,12 @@ function enableLocalModelLoading(stage, state, strings, status) {
       showModels(stage, state, strings, status, models, false, strings.loading);
     } catch (failure) {
       console.warn('Local model could not be loaded', failure);
-      say(status, strings.failed);
+      // Name the cause when we know it, rather than the same generic line every time.
+      const reason = failure && failure.message === 'UNZIP_UNSUPPORTED'
+        ? strings.noUnzip
+        : strings.failed;
+
+      say(status, reason);
       status.hidden = false;
     }
   };
@@ -661,9 +711,26 @@ export function groupDroppedFiles(files) {
 
   return models.map((model) => {
     const stem = fileStem(model.name);
-    const mine = companions.filter((companion) => (
-      models.length === 1 || fileStem(companion.name).startsWith(stem)
-    ));
+    // Prefer the companion whose name matches exactly, so chair.obj cannot claim
+    // chair_v2.mtl just because one name is a prefix of the other.
+    const mine = companions.filter((companion) => {
+      if (models.length === 1) {
+        return true;
+      }
+
+      const companionStem = fileStem(companion.name);
+
+      if (companionStem === stem) {
+        return true;
+      }
+
+      const closer = models.some((other) => (
+        other !== model && companionStem.startsWith(fileStem(other.name))
+        && fileStem(other.name).length > stem.length
+      ));
+
+      return companionStem.startsWith(stem) && !closer;
+    });
 
     return {
       model,
@@ -686,7 +753,7 @@ export async function modelsFromDroppedFiles(files, options = {}) {
 
     if (kind === 'mesh' && convertMeshToGlbUrl) {
       models.push(localModel(
-        await convertMeshToGlbUrl(model, modelExtensionFromName(model.name), companions),
+        await convertMeshToGlbUrl(model, modelExtensionFromName(model.name), companions, options.onProgress),
         model,
       ));
     }
@@ -722,49 +789,135 @@ export function modelKindFromName(name) {
  * Written by hand rather than taken from a loader because the common PLY handlers treat
  * the extension as gaussian-splat data, which misreads an ordinary mesh.
  */
-export function parsePlyMesh(text) {
-  const lines = String(text).split(/\r?\n/);
-  const headerEnd = lines.findIndex((line) => line.trim() === 'end_header');
+/**
+ * Phases a local conversion moves through, with the share of the bar each one owns.
+ *
+ * The viewer used to show model-viewer's own fetch progress, which only covers the
+ * finished GLB and sat at 99% while the real work - parsing and exporting - happened.
+ * These weights are rough measurements of where the time actually goes.
+ */
+export const conversionPhases = [
+  { key: 'reading', weight: 0.08 },
+  { key: 'parsing', weight: 0.42 },
+  { key: 'materials', weight: 0.15 },
+  { key: 'exporting', weight: 0.25 },
+  { key: 'displaying', weight: 0.10 },
+];
+
+/** Map a fraction within one phase onto overall progress between 0 and 1. */
+export function phaseProgress(key, fraction) {
+  const clamped = Math.min(1, Math.max(0, Number(fraction) || 0));
+  let start = 0;
+
+  for (const phase of conversionPhases) {
+    if (phase.key === key) {
+      return round(start + phase.weight * clamped);
+    }
+
+    start += phase.weight;
+  }
+
+  return round(clamped);
+}
+
+function round(value) {
+  return Math.min(1, Math.max(0, Math.round(value * 1000) / 1000));
+}
+
+/** Read the `format` line of a PLY header. */
+export function plyFormatOf(source) {
+  const head = typeof source === 'string'
+    ? source.slice(0, 2048)
+    : new TextDecoder().decode(new Uint8Array(source, 0, Math.min(2048, source.byteLength)));
+
+  const match = /^\s*format\s+(\S+)/m.exec(head);
+
+  return match ? match[1].toLowerCase() : 'ascii';
+}
+
+/**
+ * Parse a PLY, ASCII or binary, keeping per-vertex colour when the file carries it.
+ *
+ * Written by hand rather than taken from a loader because the common PLY handler treats
+ * the extension as gaussian-splat data, which misreads an ordinary mesh. Most exporters
+ * default to binary, so both encodings are read.
+ */
+export async function parsePlyMesh(source, options = {}) {
+  const onProgress = options.onProgress || null;
+  const buffer = typeof source === 'string' ? null : source;
+  const text = typeof source === 'string'
+    ? source
+    : new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(source));
+
+  const headerEnd = text.indexOf('end_header');
 
   if (headerEnd === -1) {
     throw new Error('PLY header is missing end_header');
   }
 
-  let vertexCount = 0;
-  let faceCount = 0;
-  let element = '';
-  const properties = [];
+  const header = parsePlyHeader(text.slice(0, headerEnd));
+  const format = plyFormatOf(text);
 
-  for (const raw of lines.slice(0, headerEnd)) {
+  if (format !== 'ascii') {
+    if (!buffer) {
+      throw new Error('A binary PLY must be read as bytes, not text');
+    }
+
+    const headerBytes = new TextEncoder().encode(text.slice(0, headerEnd)).length;
+    const bodyStart = skipNewline(new Uint8Array(buffer), headerBytes + 'end_header'.length);
+
+    return await parseBinaryPly(buffer, bodyStart, header, format === 'binary_big_endian', onProgress);
+  }
+
+  const lines = text.slice(headerEnd).split(/\r?\n/).slice(1).filter((line) => line.trim() !== '');
+
+  return await parseAsciiPly(lines, header, onProgress);
+}
+
+function parsePlyHeader(headerText) {
+  let element = '';
+  const header = { vertexCount: 0, faceCount: 0, properties: [], listProperty: null };
+
+  for (const raw of headerText.split(/\r?\n/)) {
     const parts = raw.trim().split(/\s+/);
 
     if (parts[0] === 'element') {
       element = parts[1];
 
       if (element === 'vertex') {
-        vertexCount = Number(parts[2]);
+        header.vertexCount = Number(parts[2]);
       }
 
       if (element === 'face') {
-        faceCount = Number(parts[2]);
+        header.faceCount = Number(parts[2]);
       }
     }
 
-    if (parts[0] === 'property' && parts[1] !== 'list' && element === 'vertex') {
-      properties.push(parts[2]);
+    if (parts[0] === 'property' && element === 'vertex' && parts[1] !== 'list') {
+      header.properties.push({ type: parts[1], name: parts[2] });
+    }
+
+    if (parts[0] === 'property' && element === 'face' && parts[1] === 'list') {
+      header.listProperty = { countType: parts[2], indexType: parts[3] };
     }
   }
 
-  const body = lines.slice(headerEnd + 1).filter((line) => line.trim() !== '');
+  return header;
+}
+
+async function parseAsciiPly(lines, header, onProgress) {
+  const { vertexCount, faceCount, properties } = header;
   const positions = new Float32Array(vertexCount * 3);
   const colors = new Float32Array(vertexCount * 3);
+  const names = properties.map((property) => property.name);
   let hasColour = false;
+  let lastYield = now();
 
   for (let index = 0; index < vertexCount; index += 1) {
-    const values = body[index].trim().split(/\s+/).map(Number);
+    const values = lines[index].trim().split(/\s+/).map(Number);
     const row = {};
 
-    properties.forEach((name, at) => {
+    names.forEach((name, at) => {
       row[name] = values[at];
     });
 
@@ -776,24 +929,118 @@ export function parsePlyMesh(text) {
     } else {
       colors.set([1, 1, 1], index * 3);
     }
+
+    lastYield = await maybeYield(lastYield, onProgress, index / Math.max(1, vertexCount + faceCount));
   }
 
   const indices = [];
 
   for (let index = 0; index < faceCount; index += 1) {
-    const values = body[vertexCount + index].trim().split(/\s+/).map(Number);
+    const values = lines[vertexCount + index].trim().split(/\s+/).map(Number);
     const corners = values.slice(1, values[0] + 1);
 
     for (let corner = 1; corner + 1 < corners.length; corner += 1) {
       indices.push(corners[0], corners[corner], corners[corner + 1]);
     }
+
+    lastYield = await maybeYield(lastYield, onProgress, (vertexCount + index) / Math.max(1, vertexCount + faceCount));
   }
 
-  return {
-    positions,
-    indices: new Uint32Array(indices),
-    colors: hasColour ? colors : null,
-  };
+  if (onProgress) {
+    onProgress(1);
+  }
+
+  return { positions, indices: new Uint32Array(indices), colors: hasColour ? colors : null };
+}
+
+const PLY_TYPE_SIZES = {
+  char: 1, uchar: 1, int8: 1, uint8: 1,
+  short: 2, ushort: 2, int16: 2, uint16: 2,
+  int: 4, uint: 4, int32: 4, uint32: 4, float: 4, float32: 4,
+  double: 8, float64: 8,
+};
+
+function readPlyValue(view, at, type, bigEndian) {
+  const little = !bigEndian;
+
+  switch (type) {
+    case 'char': case 'int8': return view.getInt8(at);
+    case 'uchar': case 'uint8': return view.getUint8(at);
+    case 'short': case 'int16': return view.getInt16(at, little);
+    case 'ushort': case 'uint16': return view.getUint16(at, little);
+    case 'int': case 'int32': return view.getInt32(at, little);
+    case 'uint': case 'uint32': return view.getUint32(at, little);
+    case 'double': case 'float64': return view.getFloat64(at, little);
+    default: return view.getFloat32(at, little);
+  }
+}
+
+async function parseBinaryPly(buffer, start, header, bigEndian, onProgress) {
+  const { vertexCount, faceCount, properties, listProperty } = header;
+  const view = new DataView(buffer);
+  const positions = new Float32Array(vertexCount * 3);
+  const colors = new Float32Array(vertexCount * 3);
+  let hasColour = false;
+  let at = start;
+  let lastYield = now();
+
+  for (let index = 0; index < vertexCount; index += 1) {
+    const row = {};
+
+    for (const property of properties) {
+      row[property.name] = readPlyValue(view, at, property.type, bigEndian);
+      at += PLY_TYPE_SIZES[property.type] || 4;
+    }
+
+    positions.set([row.x || 0, row.y || 0, row.z || 0], index * 3);
+
+    if (typeof row.red === 'number') {
+      hasColour = true;
+      colors.set([row.red / 255, row.green / 255, row.blue / 255], index * 3);
+    } else {
+      colors.set([1, 1, 1], index * 3);
+    }
+
+    lastYield = await maybeYield(lastYield, onProgress, index / Math.max(1, vertexCount + faceCount));
+  }
+
+  const countType = listProperty ? listProperty.countType : 'uchar';
+  const indexType = listProperty ? listProperty.indexType : 'int';
+  const indices = [];
+
+  for (let index = 0; index < faceCount; index += 1) {
+    const corners = readPlyValue(view, at, countType, bigEndian);
+    at += PLY_TYPE_SIZES[countType] || 1;
+
+    const face = [];
+
+    for (let corner = 0; corner < corners; corner += 1) {
+      face.push(readPlyValue(view, at, indexType, bigEndian));
+      at += PLY_TYPE_SIZES[indexType] || 4;
+    }
+
+    for (let corner = 1; corner + 1 < face.length; corner += 1) {
+      indices.push(face[0], face[corner], face[corner + 1]);
+    }
+
+    lastYield = await maybeYield(lastYield, onProgress, (vertexCount + index) / Math.max(1, vertexCount + faceCount));
+  }
+
+  if (onProgress) {
+    onProgress(1);
+  }
+
+  return { positions, indices: new Uint32Array(indices), colors: hasColour ? colors : null };
+}
+
+function skipNewline(bytes, at) {
+  let index = at;
+
+  while (index < bytes.length && (bytes[index] === 0x0d || bytes[index] === 0x0a)) {
+    index += 1;
+  }
+
+  return index;
 }
 
 /**
@@ -803,24 +1050,47 @@ export function parsePlyMesh(text) {
  * browser and under `node --test`; the document is machine written and its vertex and
  * triangle elements are flat.
  */
-export function parse3mfModelXml(xml) {
+export async function parse3mfModelXml(xml, options = {}) {
+  const onProgress = options.onProgress || null;
   const text = String(xml);
   const positions = [];
   const indices = [];
+  let lastYield = now();
 
-  const vertexPattern = /<vertex\b([^>]*)\/?>/g;
-  const trianglePattern = /<triangle\b([^>]*)\/?>/g;
+  const vertices = [...text.matchAll(/<vertex\b([^>]*)\/?>/g)];
+  const triangles = [...text.matchAll(/<triangle\b([^>]*)\/?>/g)];
+  const total = Math.max(1, vertices.length + triangles.length);
 
-  for (const match of text.matchAll(vertexPattern)) {
-    positions.push(attributeNumber(match[1], 'x'), attributeNumber(match[1], 'y'), attributeNumber(match[1], 'z'));
+  for (let index = 0; index < vertices.length; index += 1) {
+    const attributes = vertices[index][1];
+
+    positions.push(
+      attributeNumber(attributes, 'x'),
+      attributeNumber(attributes, 'y'),
+      attributeNumber(attributes, 'z'),
+    );
+
+    lastYield = await maybeYield(lastYield, onProgress, index / total);
   }
 
-  for (const match of text.matchAll(trianglePattern)) {
-    indices.push(attributeNumber(match[1], 'v1'), attributeNumber(match[1], 'v2'), attributeNumber(match[1], 'v3'));
+  for (let index = 0; index < triangles.length; index += 1) {
+    const attributes = triangles[index][1];
+
+    indices.push(
+      attributeNumber(attributes, 'v1'),
+      attributeNumber(attributes, 'v2'),
+      attributeNumber(attributes, 'v3'),
+    );
+
+    lastYield = await maybeYield(lastYield, onProgress, (vertices.length + index) / total);
   }
 
   if (positions.length === 0) {
     throw new Error('3MF document contains no vertices');
+  }
+
+  if (onProgress) {
+    onProgress(1);
   }
 
   return { positions: new Float32Array(positions), indices: new Uint32Array(indices), colors: null };
@@ -832,11 +1102,30 @@ function attributeNumber(attributes, name) {
   return match ? Number(match[1]) : 0;
 }
 
+function now() {
+  return typeof performance === 'undefined' ? Date.now() : performance.now();
+}
+
 /**
- * Inflate one entry from a ZIP archive, which is all a 3MF container is.
+ * Report progress and hand the thread back often enough for the bar to repaint.
  *
- * DecompressionStream is used so no zip library has to be vendored.
+ * Without this the parse blocks the frame and the bar jumps from 0 to done, which is
+ * exactly the dishonest progress this replaces.
  */
+async function maybeYield(lastYield, onProgress, fraction) {
+  if (now() - lastYield < 16) {
+    return lastYield;
+  }
+
+  if (onProgress) {
+    onProgress(Math.min(1, Math.max(0, fraction)));
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  return now();
+}
+
 export async function readZipEntry(buffer, wanted) {
   const view = new DataView(buffer);
   const bytes = new Uint8Array(buffer);
@@ -864,6 +1153,10 @@ export async function readZipEntry(buffer, wanted) {
       return decoder.decode(payload);
     }
 
+    if (typeof DecompressionStream === 'undefined') {
+      throw new Error('UNZIP_UNSUPPORTED');
+    }
+
     const stream = new Blob([payload]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
 
     return await new Response(stream).text();
@@ -886,7 +1179,10 @@ function localModel(url, file) {
   };
 }
 
-async function convertLocalMeshToGlbUrl(file, _extension, companions = new Map()) {
+async function convertLocalMeshToGlbUrl(file, _extension, companions = new Map(), report = () => {}) {
+  // `report(phase, fraction, warningKey)` - a warning is shown without stopping the load.
+  report('reading', 0);
+
   const [
     three,
     { STLLoader },
@@ -900,21 +1196,42 @@ async function convertLocalMeshToGlbUrl(file, _extension, companions = new Map()
     import('three/addons/loaders/MTLLoader.js'),
     import('three/addons/exporters/GLTFExporter.js'),
   ]);
+
+  report('reading', 0.5);
+
   const buffer = await file.arrayBuffer();
   const extension = modelExtensionFromName(file.name);
+
+  report('reading', 1);
+
+  report('parsing', 0);
+  // Let the label paint before a synchronous loader takes the thread.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
   const root = await meshObjectFor(extension, buffer, {
     three,
     STLLoader,
     OBJLoader,
     MTLLoader,
     companions,
+    onParseProgress: (fraction) => report('parsing', fraction),
+    onMaterialProgress: (fraction) => report('materials', fraction),
+    onTextureTimeout: () => report('materials', 1, 'textureSlow'),
   });
+
+  report('parsing', 1);
+
   const scene = new three.Scene();
 
   centerObject(root, three);
   scene.add(root);
 
+  report('exporting', null);
+
   const glb = await exportGlb(scene, new GLTFExporter());
+
+  report('exporting', 1);
+
   const blob = new Blob([glb], { type: 'model/gltf-binary' });
 
   return URL.createObjectURL(blob);
@@ -930,7 +1247,9 @@ function stlToObject(buffer, three, STLLoader) {
   );
 }
 
-async function objToObject(buffer, three, OBJLoader, MTLLoader, companions = new Map()) {
+async function objToObject(buffer, three, OBJLoader, MTLLoader, companions = new Map(), hooks = {}) {
+  const onMaterialProgress = hooks.onMaterialProgress || (() => {});
+  const onTextureTimeout = hooks.onTextureTimeout || (() => {});
   const text = new TextDecoder().decode(buffer);
   const loader = new OBJLoader();
   const blobUrls = [];
@@ -939,7 +1258,7 @@ async function objToObject(buffer, three, OBJLoader, MTLLoader, companions = new
   // the model, so a LoadingManager rewrites those relative names onto the blobs we hold.
   const materialFile = findCompanion(companions, text.match(/^\s*mtllib\s+(.+)$/m)?.[1], 'mtl');
 
-  let texturesReady = Promise.resolve();
+  let texturesReady = Promise.resolve({ timedOut: false });
 
   if (materialFile) {
     const manager = new three.LoadingManager();
@@ -947,6 +1266,13 @@ async function objToObject(buffer, three, OBJLoader, MTLLoader, companions = new
 
     manager.onStart = () => {
       startedLoading = true;
+      onMaterialProgress(0.05);
+    };
+
+    // Real texture counts, so the bar moves while images download rather than sitting
+    // still through the slowest part of a textured load.
+    manager.onProgress = (_url, loaded, total) => {
+      onMaterialProgress(total > 0 ? loaded / total : 0.5);
     };
 
     manager.setURLModifier((url) => {
@@ -977,7 +1303,12 @@ async function objToObject(buffer, three, OBJLoader, MTLLoader, companions = new
       // The GLTF exporter reads pixels out of the texture images, so exporting before
       // they finish decoding fails with "No valid image data found".
       if (startedLoading) {
-        texturesReady = Promise.race([settled, delay(TEXTURE_LOAD_TIMEOUT_MS)]);
+        // A slow or missing texture must not hang the load, but it must not fail
+        // silently either: the caller is told so it can say what happened.
+        texturesReady = Promise.race([
+          settled.then(() => ({ timedOut: false })),
+          delay(TEXTURE_LOAD_TIMEOUT_MS).then(() => ({ timedOut: true })),
+        ]);
       }
     } catch (failure) {
       console.warn('The .mtl file could not be applied', failure);
@@ -985,8 +1316,13 @@ async function objToObject(buffer, three, OBJLoader, MTLLoader, companions = new
   }
 
   const object = loader.parse(text);
+  const outcome = (await texturesReady) || { timedOut: false };
 
-  await texturesReady;
+  onMaterialProgress(1);
+
+  if (outcome.timedOut) {
+    onTextureTimeout();
+  }
   const fallback = new three.MeshStandardMaterial({
     color: 0xb8b8b8,
     roughness: 0.75,
@@ -1057,7 +1393,7 @@ function exportGlb(scene, exporter) {
   });
 }
 
-function say(status, line, second, percent) {
+function say(status, line, second, percent, fraction) {
   status.textContent = line || '';
 
   if (second) {
@@ -1069,6 +1405,30 @@ function say(status, line, second, percent) {
     figure.className = 'ar-progress';
     figure.textContent = percent;
     status.append(figure);
+  }
+
+  if (fraction === null || typeof fraction === 'number') {
+    const track = document.createElement('span');
+    const fill = document.createElement('span');
+
+    track.className = 'ar-progress-track';
+    track.setAttribute('role', 'progressbar');
+    track.setAttribute('aria-valuemin', '0');
+    track.setAttribute('aria-valuemax', '100');
+    fill.className = 'ar-progress-fill';
+
+    if (fraction === null) {
+      // Some steps report nothing at all - the GLTF exporter has no progress hook -
+      // so the bar says "working" instead of inventing a number.
+      track.classList.add('is-indeterminate');
+      track.removeAttribute('aria-valuenow');
+    } else {
+      track.setAttribute('aria-valuenow', String(Math.round(fraction * 100)));
+      fill.style.width = `${Math.round(fraction * 100)}%`;
+    }
+
+    track.append(fill);
+    status.append(track);
   }
 }
 
@@ -1227,7 +1587,7 @@ async function meshObjectFor(extension, buffer, deps) {
   }
 
   if (extension === 'ply') {
-    return parsedMeshToObject(parsePlyMesh(new TextDecoder().decode(buffer)), three);
+    return parsedMeshToObject(await parsePlyMesh(buffer, { onProgress: deps.onParseProgress }), three);
   }
 
   if (extension === '3mf') {
@@ -1237,10 +1597,13 @@ async function meshObjectFor(extension, buffer, deps) {
       throw new Error('3MF archive has no 3D/3dmodel.model');
     }
 
-    return parsedMeshToObject(parse3mfModelXml(document), three);
+    return parsedMeshToObject(await parse3mfModelXml(document, { onProgress: deps.onParseProgress }), three);
   }
 
-  return objToObject(buffer, three, OBJLoader, MTLLoader, companions);
+  return objToObject(buffer, three, OBJLoader, MTLLoader, companions, {
+    onMaterialProgress: deps.onMaterialProgress,
+    onTextureTimeout: deps.onTextureTimeout,
+  });
 }
 
 /** Build a three mesh from parsed geometry, keeping per-vertex colour when present. */
