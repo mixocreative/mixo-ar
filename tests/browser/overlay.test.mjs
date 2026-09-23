@@ -249,3 +249,64 @@ test('an OBJ given by URL resolves its .mtl and texture from the same folder', a
   assert.equal(await overlayVisible(page), false);
   await page.close();
 });
+
+/** A second origin, so cross-domain model hosting can be exercised for real. */
+async function startOtherOrigin({ cors }) {
+  const other = createServer(async (request, response) => {
+    const file = join(root, decodeURIComponent(request.url.split('?')[0]));
+    const headers = { 'content-type': 'application/octet-stream' };
+
+    if (cors) {
+      headers['access-control-allow-origin'] = '*';
+    }
+
+    try {
+      response.writeHead(200, headers).end(await readFile(file));
+    } catch {
+      response.writeHead(404).end('no');
+    }
+  });
+
+  await new Promise((resolve) => other.listen(0, '127.0.0.1', resolve));
+
+  return { other, base: `http://127.0.0.1:${other.address().port}` };
+}
+
+test('an OBJ hosted on another domain loads when that domain allows it', async () => {
+  const { other, base } = await startOtherOrigin({ cors: true });
+
+  try {
+    const page = await browser.newPage();
+    const errors = [];
+
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto(`${origin}/index.html?model=${encodeURIComponent(`${base}/tests/fixtures/quad.obj`)}`, { waitUntil: 'load' });
+    await page.waitForFunction(() => document.querySelector('model-viewer')?.loaded === true, null, { timeout: 30000 });
+    await page.waitForTimeout(1200);
+
+    assert.deepEqual(errors, []);
+    assert.equal(await overlayVisible(page), false);
+    await page.close();
+  } finally {
+    await new Promise((resolve) => other.close(resolve));
+  }
+});
+
+test('a cross-domain model without CORS fails visibly instead of hanging', async () => {
+  const { other, base } = await startOtherOrigin({ cors: false });
+
+  try {
+    const page = await browser.newPage();
+
+    await page.goto(`${origin}/index.html?model=${encodeURIComponent(`${base}/tests/fixtures/quad.obj`)}`, { waitUntil: 'load' });
+    await page.waitForTimeout(6000);
+
+    const message = await page.evaluate(() => document.querySelector('.ar-status')?.textContent || '');
+
+    // The user must be told something, not left watching an empty stage.
+    assert.ok(message.trim().length > 0, 'a blocked cross-domain model must say so');
+    await page.close();
+  } finally {
+    await new Promise((resolve) => other.close(resolve));
+  }
+});
