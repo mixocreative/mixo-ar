@@ -10,6 +10,7 @@ const I18N = {
     helpLabel: 'How to use this',
     aboutLabel: 'About',
     loadLocalLabel: 'Load a local model',
+    loadFolderLabel: 'Open a folder',
     helpTitle: 'How to use this',
     diagramAlt: 'Where the controls are on the screen',
     stepModels: 'If the link lists more than one model, they are listed here. A file you open from this device shows one model at a time.',
@@ -40,7 +41,7 @@ const I18N = {
     largeModel: 'This model is {size}. Converting it can take a while on a phone.',
     noUnzip: 'This browser cannot open 3MF archives. Try Chrome, Edge, or a recent Safari.',
     blocked: 'The site hosting this model does not allow other sites to read it.',
-    missingMaterial: 'This model needs a .mtl file that was not included, so it is shown without its material. Put the model, its .mtl and its texture in a .zip and choose that instead.',
+    missingMaterial: 'This model needs a .mtl file that was not included, so it is shown without its material. Open the folder it lives in, or select it together with its .mtl and texture.',
     unsupported: 'Drop or choose a GLB, GLTF, OBJ, PLY, 3MF, or STL file, or a .zip holding a model with its .mtl and texture.',
   },
   'zh-Hant': {
@@ -49,6 +50,7 @@ const I18N = {
     helpLabel: '使用說明',
     aboutLabel: '關於',
     loadLocalLabel: '載入本機模型',
+    loadFolderLabel: '開啟資料夾',
     helpTitle: '使用說明',
     diagramAlt: '畫面控制位置',
     stepModels: '如果連結包含多個模型，會在這裡列出。從裝置開啟的檔案一次顯示一個模型。',
@@ -79,7 +81,7 @@ const I18N = {
     largeModel: '這個模型有 {size}，在手機上轉換可能需要一些時間。',
     noUnzip: '此瀏覽器無法開啟 3MF 壓縮檔。請改用 Chrome、Edge 或較新的 Safari。',
     blocked: '存放這個模型的網站不允許其他網站讀取它。',
-    missingMaterial: '這個模型需要的 .mtl 檔案未被包含，因此不顯示材質。請將模型、.mtl 與貼圖壓縮成 .zip，再選擇那個檔案。',
+    missingMaterial: '這個模型需要的 .mtl 檔案未被包含，因此不顯示材質。請改為開啟它所在的資料夾，或連同 .mtl 與貼圖一起選取。',
     unsupported: '請拖放或選擇 GLB、GLTF、OBJ、PLY、3MF 或 STL 檔案，或包含模型與 .mtl、貼圖的 .zip。',
   },
   ja: {
@@ -88,6 +90,7 @@ const I18N = {
     helpLabel: '使い方',
     aboutLabel: 'About',
     loadLocalLabel: 'ローカルモデルを読み込む',
+    loadFolderLabel: 'フォルダを開く',
     helpTitle: '使い方',
     diagramAlt: '画面上の操作ボタンの位置',
     stepModels: 'リンクに複数のモデルが含まれる場合、ここに一覧表示されます。端末から開いたファイルは一度に 1 つのモデルを表示します。',
@@ -118,7 +121,7 @@ const I18N = {
     largeModel: 'このモデルは {size} です。スマートフォンでは変換に時間がかかることがあります。',
     noUnzip: 'このブラウザーは 3MF を開けません。Chrome、Edge、または新しい Safari をお使いください。',
     blocked: 'このモデルを配信しているサイトが、他サイトからの読み込みを許可していません。',
-    missingMaterial: 'このモデルが必要とする .mtl ファイルが含まれていないため、マテリアルなしで表示します。モデルと .mtl、テクスチャを .zip にまとめて選んでください。',
+    missingMaterial: 'このモデルが必要とする .mtl ファイルが含まれていないため、マテリアルなしで表示します。モデルのあるフォルダを開くか、.mtl とテクスチャも一緒に選んでください。',
     unsupported: 'GLB、GLTF、OBJ、PLY、3MF、STL ファイル、またはモデルと .mtl・テクスチャを含む .zip をドロップまたは選択してください。',
   },
 };
@@ -670,6 +673,17 @@ export function isLargeForConversion(file) {
  * Only iOS is affected; everywhere else keeps the explicit list, which is what makes the
  * picker useful there.
  */
+/**
+ * Whether this browser can hand over a whole folder.
+ *
+ * Choosing a folder is the only way a single action can bring a model and every file it
+ * depends on, since a page cannot read a file that was not selected. Desktop browsers
+ * all support it and Safari on iOS gained it in 18.4; Chrome on Android does not.
+ */
+export function supportsFolderPicking(inputPrototype) {
+  return Boolean(inputPrototype) && 'webkitdirectory' in inputPrototype;
+}
+
 export function acceptAttributeFor(userAgent, platform, maxTouchPoints, current) {
   const ua = String(userAgent || '');
   const isIosDevice = /iPad|iPhone|iPod/.test(ua);
@@ -683,6 +697,19 @@ function enableLocalModelLoading(stage, state, strings, status) {
   const input = document.getElementById('model-file-input');
   const pickers = document.querySelectorAll('[data-pick-model]');
   const pickerLabels = document.querySelectorAll('label[for="model-file-input"]');
+
+  const folderInput = document.getElementById('model-folder-input');
+
+  if (folderInput && supportsFolderPicking(window.HTMLInputElement && window.HTMLInputElement.prototype)) {
+    for (const label of document.querySelectorAll('[data-folder-pick]')) {
+      label.hidden = false;
+    }
+
+    folderInput.addEventListener('change', () => {
+      load(folderInput.files || []);
+      folderInput.value = '';
+    });
+  }
 
   if (input) {
     const accept = acceptAttributeFor(

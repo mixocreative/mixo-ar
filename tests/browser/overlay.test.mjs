@@ -360,3 +360,42 @@ test('one zip holding an OBJ, its mtl and texture loads as a textured model', as
   assert.equal(await overlayVisible(page), false);
   await page.close();
 });
+
+test('opening a folder finds the model, its mtl and its texture on its own', async () => {
+  // One action, no companion picking: the folder is handed over and the OBJ's own
+  // mtllib and map_Kd lines lead to everything else.
+  const { page, errors } = await openViewer(`${origin}/index.html?model=./assets/ar/fallback.glb`);
+  const said = [];
+
+  await page.exposeFunction('noteStatus', (text) => said.push(text));
+  await page.evaluate(() => {
+    const status = document.querySelector('.ar-status');
+
+    new MutationObserver(() => window.noteStatus(status.textContent || '')).observe(
+      status,
+      { childList: true, characterData: true, subtree: true },
+    );
+  });
+
+  const folderControl = await page.evaluate(() => {
+    const label = document.querySelector('[data-folder-pick]');
+
+    return { exists: Boolean(label), visible: label ? !label.hidden : false };
+  });
+
+  assert.ok(folderControl.exists, 'the folder control is on the page');
+  assert.ok(folderControl.visible, 'and is shown, because this browser supports folders');
+
+  // Playwright hands the input the folder's contents, which is what the browser does.
+  await page.setInputFiles('#model-folder-input', join(root, 'tests', 'fixtures', 'quad_folder'));
+  await page.waitForFunction(() => document.querySelector('model-viewer')?.loaded === true, null, { timeout: 40000 });
+  await page.waitForTimeout(1500);
+
+  assert.deepEqual(errors, []);
+  assert.ok(
+    !said.some((text) => /was not included|未被包含|含まれていない/.test(text)),
+    'the material was traced from the folder, so nothing should be reported missing',
+  );
+  assert.equal(await overlayVisible(page), false);
+  await page.close();
+});

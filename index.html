@@ -11,7 +11,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./assets/favicon/favicon-16x16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/favicon/apple-touch-icon.png">
   <link rel="manifest" href="./site.webmanifest">
-  <link rel="stylesheet" href="./assets/css/mixo-ar.css?v=2026092421">
+  <link rel="stylesheet" href="./assets/css/mixo-ar.css?v=2026092430">
   <script type="importmap">
     {
       "imports": {
@@ -53,11 +53,15 @@
         <button type="button" class="ar-tool" data-sheet="ar-info" aria-haspopup="dialog">
           <span aria-hidden="true">i</span><span class="ar-hidden" data-i18n="aboutLabel">About</span>
         </button>
+        <label class="ar-tool" for="model-folder-input" role="button" tabindex="0" data-folder-pick hidden>
+          <span aria-hidden="true">▢</span><span class="ar-hidden" data-i18n="loadFolderLabel">Open a folder</span>
+        </label>
         <label class="ar-tool" for="model-file-input" role="button" tabindex="0">
           <span aria-hidden="true">+</span><span class="ar-hidden" data-i18n="loadLocalLabel">Load a local model</span>
         </label>
       </span>
     </nav>
+    <input id="model-folder-input" class="ar-hidden" type="file" webkitdirectory multiple aria-label="Open a folder" data-i18n-aria="loadFolderLabel" hidden>
     <input id="model-file-input" class="ar-hidden" type="file" accept=".glb,.gltf,.obj,.ply,.3mf,.stl,.zip,.mtl,.png,.jpg,.jpeg,.webp" multiple aria-label="Load a model" data-i18n-aria="loadLocalLabel" hidden>
     <button type="button" id="ar-button" class="ar-ar-button" slot="ar-button" hidden>
       <svg class="ar-glyph ar-scan-glyph" viewBox="0 0 32 24" aria-hidden="true" focusable="false">
@@ -104,6 +108,6 @@ background: linear-gradient(307deg,rgba(96, 35, 166, 1) 0%, rgba(207, 0, 41, 1) 
     <form method="dialog"><button class="ar-close" data-i18n="close">Close</button></form>
   </dialog>
 
-  <script type="module" src="./assets/js/mixo-ar.js?v=2026092421"></script>
+  <script type="module" src="./assets/js/mixo-ar.js?v=2026092430"></script>
 </body>
 </html>

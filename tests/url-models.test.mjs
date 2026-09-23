@@ -287,3 +287,13 @@ test('only a large file that needs converting is called heavy', () => {
   assert.equal(isLargeForConversion({ name: 'huge.glb', size: big }), false);
   assert.equal(isLargeForConversion({ name: 'small.obj', size: 1024 }), false);
 });
+
+test('folder picking is offered only where the browser supports it', async () => {
+  const { supportsFolderPicking } = await import('../assets/js/mixo-ar.js');
+
+  // Choosing a folder is the only single action that brings a model and its
+  // dependencies together, since a page cannot read files that were not selected.
+  assert.equal(supportsFolderPicking({ webkitdirectory: false }), true, 'present means supported');
+  assert.equal(supportsFolderPicking({}), false, 'absent means the control stays hidden');
+  assert.equal(supportsFolderPicking(null), false);
+});
