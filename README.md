@@ -13,6 +13,7 @@ Supported local formats:
 - `.gltf`
 - `.stl`
 - `.obj`
+- `.3mf` (with colours and textures)
 
 STL and OBJ files are converted in the browser to temporary GLB blobs before loading. The original
 file is not uploaded.
