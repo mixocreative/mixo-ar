@@ -2059,9 +2059,10 @@ function findCompanion(companions, name, extension) {
  * Turn a Z-up file so it stands the right way in the Y-up viewer.
  *
  * 3MF is Z-up by definition, so without this a model arrives lying on its back: what
- * should face the sky faces the camera instead.
+ * should face the sky faces the camera instead. STL carries no axis of its own, but the
+ * slicers and CAD tools that write it all treat Z as up, so it is turned the same way.
  */
-const Z_UP_FORMATS = new Set(['3mf']);
+const Z_UP_FORMATS = new Set(['3mf', 'stl']);
 
 function standUpright(object, extension, three) {
   if (!Z_UP_FORMATS.has(extension)) {

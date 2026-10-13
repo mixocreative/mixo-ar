@@ -188,41 +188,43 @@ test('a solid base material renders in its own colour, and vertex colours blend'
   assert.ok(orange.x < red.x, 'the box is left of the triangle, as the file places them');
 });
 
-test('a Z-up 3MF stands upright rather than lying on its back', async () => {
-  // A 10 x 10 x 40 tower along Z. Seen from the default front camera it must be tall.
-  const { page, errors } = await openFixture('tower.3mf');
-  const image = await pixelsOf(page);
+for (const fixture of ['tower.3mf', 'tower.stl']) {
+  test(`a Z-up ${fixture.split('.').pop().toUpperCase()} stands upright rather than lying on its back`, async () => {
+    // A 10 x 10 x 40 tower along Z. Seen from the default front camera it must be tall.
+    const { page, errors } = await openFixture(fixture);
+    const image = await pixelsOf(page);
 
-  await page.close();
+    await page.close();
 
-  // The grey tower is close to the page's own grey, so measure it against that grey,
-  // below the toolbar and away from the edges where the controls sit.
-  const { width, height, data } = image;
-  const background = data.slice(((height - 5) * width + 5) * 4, ((height - 5) * width + 5) * 4 + 3);
-  let minX = width;
-  let maxX = -1;
-  let minY = height;
-  let maxY = -1;
+    // The grey tower is close to the page's own grey, so measure it against that grey,
+    // below the toolbar and away from the edges where the controls sit.
+    const { width, height, data } = image;
+    const background = data.slice(((height - 5) * width + 5) * 4, ((height - 5) * width + 5) * 4 + 3);
+    let minX = width;
+    let maxX = -1;
+    let minY = height;
+    let maxY = -1;
 
-  for (let y = 90; y < height - 20; y += 1) {
-    for (let x = 80; x < width - 80; x += 1) {
-      const at = (y * width + x) * 4;
-      const differs = Math.abs(data[at] - background[0]) + Math.abs(data[at + 1] - background[1])
-        + Math.abs(data[at + 2] - background[2]) > 18;
+    for (let y = 90; y < height - 20; y += 1) {
+      for (let x = 80; x < width - 80; x += 1) {
+        const at = (y * width + x) * 4;
+        const differs = Math.abs(data[at] - background[0]) + Math.abs(data[at + 1] - background[1])
+          + Math.abs(data[at + 2] - background[2]) > 18;
 
-      if (differs) {
-        minX = Math.min(minX, x);
-        maxX = Math.max(maxX, x);
-        minY = Math.min(minY, y);
-        maxY = Math.max(maxY, y);
+        if (differs) {
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+        }
       }
     }
-  }
 
-  assert.deepEqual(errors, []);
-  assert.ok(maxX > minX && maxY > minY, 'the tower is visible');
-  const tall = maxY - minY;
-  const wide = maxX - minX;
+    assert.deepEqual(errors, []);
+    assert.ok(maxX > minX && maxY > minY, 'the tower is visible');
+    const tall = maxY - minY;
+    const wide = maxX - minX;
 
-  assert.ok(tall > 2 * wide, `taller than wide on screen (${tall} x ${wide})`);
-});
+    assert.ok(tall > 2 * wide, `taller than wide on screen (${tall} x ${wide})`);
+  });
+}
