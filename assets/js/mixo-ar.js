@@ -1894,6 +1894,7 @@ async function glbFromBuffer(extension, buffer, companions, report = () => {}) {
 
   const scene = new three.Scene();
 
+  standUpright(root, extension, three);
   centerObject(root, three);
   scene.add(root);
 
@@ -2052,6 +2053,23 @@ function findCompanion(companions, name, extension) {
   }
 
   return null;
+}
+
+/**
+ * Turn a Z-up file so it stands the right way in the Y-up viewer.
+ *
+ * 3MF is Z-up by definition, so without this a model arrives lying on its back: what
+ * should face the sky faces the camera instead.
+ */
+const Z_UP_FORMATS = new Set(['3mf']);
+
+function standUpright(object, extension, three) {
+  if (!Z_UP_FORMATS.has(extension)) {
+    return;
+  }
+
+  object.rotation.x = -Math.PI / 2;
+  object.updateMatrixWorld(true);
 }
 
 function centerObject(object, three) {

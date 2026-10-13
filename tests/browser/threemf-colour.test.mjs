@@ -49,13 +49,23 @@ after(async () => {
 });
 
 /** Open a fixture the way a shared link does, and wait for the viewer to show it. */
-async function openFixture(name) {
+async function openFixture(name, cameraOrbit = null) {
   const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
   const errors = [];
 
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(`${origin}/index.html?src=${encodeURIComponent(`${origin}/tests/fixtures/${name}`)}`, { waitUntil: 'load' });
   await page.waitForFunction(() => document.querySelector('model-viewer')?.loaded === true, null, { timeout: 30000 });
+
+  if (cameraOrbit) {
+    await page.evaluate((orbit) => {
+      const viewer = document.querySelector('model-viewer');
+
+      viewer.cameraOrbit = orbit;
+      viewer.jumpCameraToGoal();
+    }, cameraOrbit);
+  }
+
   // Let the camera settle and the frame render before reading pixels.
   await page.waitForTimeout(2500);
 
@@ -132,7 +142,8 @@ const nearHue = (target, spread = 18) => ({ hue, saturation, value }) =>
   saturation > 0.6 && value > 0.25 && Math.min(Math.abs(hue - target), 360 - Math.abs(hue - target)) < spread;
 
 test('a textured 3MF shows its image the right way up', async () => {
-  const { page, errors } = await openFixture('textured_quad.3mf');
+  // The quad lies on the build plate (3MF is Z-up), so look straight down at it.
+  const { page, errors } = await openFixture('textured_quad.3mf', '0deg 0.001deg auto');
   const image = await pixelsOf(page);
   const red = find(image, nearHue(0));
   const green = find(image, nearHue(120));
@@ -146,7 +157,7 @@ test('a textured 3MF shows its image the right way up', async () => {
     assert.ok(found.count > 400, `${name} quadrant is visible (${found.count} pixels)`);
   }
 
-  // Image rows are red|green over blue|white, so with the square seen from the front:
+  // Image rows are red|green over blue|white, so with the square seen from above:
   assert.ok(red.x < green.x - 20, 'red is left of green');
   assert.ok(red.y < blue.y - 20, 'red is above blue');
   assert.ok(Math.abs(red.y - green.y) < 10, 'red and green share the top row');
@@ -175,4 +186,43 @@ test('a solid base material renders in its own colour, and vertex colours blend'
   assert.ok(orange.count > 1500, `the #FF9500 box is orange (${orange.count} pixels)`);
   assert.ok(red.count > 20 && green.count > 20 && blue.count > 20, 'the painted triangle shows all three corner colours');
   assert.ok(orange.x < red.x, 'the box is left of the triangle, as the file places them');
+});
+
+test('a Z-up 3MF stands upright rather than lying on its back', async () => {
+  // A 10 x 10 x 40 tower along Z. Seen from the default front camera it must be tall.
+  const { page, errors } = await openFixture('tower.3mf');
+  const image = await pixelsOf(page);
+
+  await page.close();
+
+  // The grey tower is close to the page's own grey, so measure it against that grey,
+  // below the toolbar and away from the edges where the controls sit.
+  const { width, height, data } = image;
+  const background = data.slice(((height - 5) * width + 5) * 4, ((height - 5) * width + 5) * 4 + 3);
+  let minX = width;
+  let maxX = -1;
+  let minY = height;
+  let maxY = -1;
+
+  for (let y = 90; y < height - 20; y += 1) {
+    for (let x = 80; x < width - 80; x += 1) {
+      const at = (y * width + x) * 4;
+      const differs = Math.abs(data[at] - background[0]) + Math.abs(data[at + 1] - background[1])
+        + Math.abs(data[at + 2] - background[2]) > 18;
+
+      if (differs) {
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+      }
+    }
+  }
+
+  assert.deepEqual(errors, []);
+  assert.ok(maxX > minX && maxY > minY, 'the tower is visible');
+  const tall = maxY - minY;
+  const wide = maxX - minX;
+
+  assert.ok(tall > 2 * wide, `taller than wide on screen (${tall} x ${wide})`);
 });

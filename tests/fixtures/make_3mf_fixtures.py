@@ -133,7 +133,13 @@ def inch_unit():
             target.writestr(info, data)
 
 
+def tower():
+    # Four times taller than wide along Z, so it shows whether Z-up is stood upright.
+    v, t = box(0, 0, 0, 10, 10, 40)
+    w.write_3mf(HERE / "tower.3mf", [grey("Tower", v, t)], [], application=APP)
+
+
 if __name__ == "__main__":
-    for build in (two_parts, textured_quad, colors, inch_unit):
+    for build in (two_parts, textured_quad, colors, inch_unit, tower):
         build()
         print("wrote", build.__name__)
