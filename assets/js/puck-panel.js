@@ -20,7 +20,7 @@ import {
   orientationAttribute,
   readStatus,
   relativeTo,
-} from './puck-orientation.js?v=2026111601';
+} from './puck-orientation.js?v=2026111602';
 
 /** How long Align watches before it takes the reference, once the puck is holding still. */
 const ALIGN_SAMPLE_MS = 500;
@@ -179,6 +179,12 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
       // model keeps turning on its own AND follows the hand, and neither reads as either.
       spin(false);
 
+      // And put the model back to its default angle, because whatever it was showing was either
+      // the turntable's idea or the last link's. Connecting is the moment a person expects a
+      // known starting point, and the alternative - carrying a stale angle into a fresh link -
+      // makes the first reading look like a jump the puck caused.
+      showDefaultView();
+
       // Until a reference is taken the model's angle means nothing, so the first connection walks
       // straight into Align rather than leaving it to be discovered (0010).
       beginAlign();
@@ -232,6 +238,23 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
       }
 
       return;
+    }
+
+    /*
+     * NO REFERENCE MEANS NO MEANINGFUL ANGLE, so the first reading becomes one.
+     *
+     * `relativeTo(null, q)` hands back the raw reading, and the puck has no magnetometer: its
+     * yaw starts at a different angle every time it wakes (PROTOCOL.md section 3). Showing that
+     * is the model snapping to an arbitrary heading the instant the link comes up, which reads
+     * as the puck spinning the model on its own.
+     *
+     * Align still runs on connect and still does the better job - it averages a held-still
+     * window rather than trusting one sample. This is the floor underneath it, for the person
+     * who dismisses the card, and it means the model is never driven by an angle that means
+     * nothing.
+     */
+    if (state.qZero === null) {
+      state.qZero = q;
     }
 
     const viewer = getViewer();

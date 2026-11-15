@@ -2,13 +2,13 @@
 // says so. The rendering itself is `core/viewer.js`, which is also what mixoweb vendors - so a
 // change to how a model is shown belongs there, and a change to what may be shown belongs here.
 
-import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111601';
-import { phaseProgress } from './core/convert/progress.js?v=2026111601';
-import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111601';
-import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111601';
-import { createPuck } from './puck/puck.js?v=2026111601';
-import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111601';
-import { listZipEntries } from './zip-entries.js?v=2026111601';
+import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111602';
+import { phaseProgress } from './core/convert/progress.js?v=2026111602';
+import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111602';
+import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111602';
+import { createPuck } from './puck/puck.js?v=2026111602';
+import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111602';
+import { listZipEntries } from './zip-entries.js?v=2026111602';
 
 const stage = typeof document === 'undefined' ? null : document.querySelector('[data-mixo-ar]');
 const LANGUAGE_STORAGE_KEY = 'mixo-ar-language';
@@ -215,7 +215,7 @@ async function start(stage) {
   showArButtonPreview(stage, strings, window.location.search);
   enablePuck(stage, state, strings);
 
-  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111601');
+  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111602');
   const decoderBase = new URL('../vendor/model-viewer/decoders/', import.meta.url).href;
   ModelViewerElement.dracoDecoderLocation = decoderBase + 'draco/';
   ModelViewerElement.ktx2TranscoderLocation = decoderBase + 'ktx2/';
