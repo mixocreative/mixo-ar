@@ -20,7 +20,7 @@ import {
   orientationAttribute,
   readStatus,
   relativeTo,
-} from './puck-orientation.js?v=2026111505';
+} from './puck-orientation.js?v=2026111601';
 
 /** How long Align watches before it takes the reference, once the puck is holding still. */
 const ALIGN_SAMPLE_MS = 500;

@@ -11,7 +11,7 @@ differently in this page than in its own harness.
 | `puck.js` | the link state machine, bounded reconnection, and the one command the device has |
 | `transport-web-bluetooth.js` | `navigator.bluetooth` in, byte arrays out |
 
-Vendored at mixospatial `1419995`, 2026-11-16.
+Ticket at vendoring time: `2026111601`. Vendored at mixospatial `1419995`, 2026-11-16.
 
 **One modification is made on the way in, and only one:** every relative import gets the page's
 `?v=` ticket. `tests/url-models.test.mjs` requires it of every module the page loads, because an
