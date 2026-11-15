@@ -585,10 +585,38 @@ model-viewer {
   background: #9b9b9b;
 }
 
+/*
+  The dot is the link, at a glance, without opening the menu: green holding, red failed, blue
+  pulsing while it tries. Three states a person can read across the room, and the only one that
+  moves is the one that is temporary - a steady light says "this is how things are", a blinking
+  one says "wait".
+*/
 .ar-puck-dot[data-link="connected"] { background: #2f9e44; }
-.ar-puck-dot[data-link="connecting"] { background: var(--ar-gold); }
 .ar-puck-dot[data-link="lost"] { background: var(--ar-red); }
 .ar-puck-dot[data-link="idle"] { display: none; }
+
+.ar-puck-dot[data-link="connecting"] {
+  background: #1c7ed6;
+  animation: ar-puck-trying 1.1s ease-in-out infinite;
+}
+
+@keyframes ar-puck-trying {
+  50% { opacity: 0.25; }
+}
+
+/*
+  Someone who has asked for less motion still needs to tell "trying" from "connected", so the
+  blink is replaced rather than dropped: a ring instead of a fill. Removing the animation and
+  leaving a plain blue dot would make the two states differ only by hue, which is exactly what a
+  person with a colour deficiency cannot use either.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .ar-puck-dot[data-link="connecting"] {
+    animation: none;
+    background: transparent;
+    box-shadow: inset 0 0 0 2px #1c7ed6;
+  }
+}
 
 .ar-puck-menu { min-width: 210px; }
 

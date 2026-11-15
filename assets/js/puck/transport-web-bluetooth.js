@@ -135,6 +135,38 @@ export function createWebBluetoothTransport({
   let handlers = null;
   let onDisconnected = null;
 
+  /*
+   * The already-authorised device, looked up NOW rather than inside the click.
+   *
+   * THIS IS THE WHOLE REASON THIS VARIABLE EXISTS, and moving the lookup back into `open()` breaks
+   * Connect everywhere the page has not been granted a device before. `requestDevice()` may only
+   * run while the browser is still handling a user gesture, and **an `await` spends that gesture**.
+   * The lookup used to sit at the top of `open()`, so the sequence inside the click handler was
+   *
+   *     await bluetooth.getDevices()   // gesture spent here
+   *     await bluetooth.requestDevice(...)   // SecurityError, no chooser ever appears
+   *
+   * and the thrown SecurityError was caught upstream and reported as a lost link - so the symptom
+   * was a Connect button that appeared to do nothing, and a status line blaming the puck's battery.
+   * It hid for weeks because the only browser profile anyone tested had already been granted the
+   * device, in which case `getDevices()` found it and `requestDevice` was never reached.
+   *
+   * Started at construction, which is page load: by the time anybody clicks, it has long settled,
+   * so the shortcut is kept and `open()` reaches `requestDevice` with the gesture intact.
+   */
+  let remembered = null;
+
+  if (typeof bluetooth?.getDevices === 'function') {
+    bluetooth
+      .getDevices()
+      .then((known) => {
+        remembered = known.find((candidate) => candidate.name?.startsWith(namePrefix)) || null;
+      })
+      .catch(() => {
+        // Not in every stable Chrome, and permission-dependent. The chooser is what always works.
+      });
+  }
+
   const forget = () => {
     if (device && onDisconnected) {
       device.removeEventListener('gattserverdisconnected', onDisconnected);
@@ -218,16 +250,10 @@ export function createWebBluetoothTransport({
       }
 
       // A device we are already authorised for needs no chooser, not even on a fresh page load.
-      // `getDevices()` is not in every stable Chrome, so it is the shortcut, never the design: the
-      // chooser below is what always works.
-      if (!device && typeof bluetooth.getDevices === 'function') {
-        try {
-          const known = await bluetooth.getDevices();
-
-          device = known.find((candidate) => candidate.name?.startsWith(namePrefix)) || null;
-        } catch {
-          device = null;
-        }
+      // Read from `remembered`, which was filled at construction - NOT awaited here, because an
+      // await before `requestDevice` costs the user gesture it needs. See the comment above.
+      if (!device) {
+        device = remembered;
       }
 
       if (!device) {
