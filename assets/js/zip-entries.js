@@ -101,3 +101,45 @@ function findEndOfCentralDirectory(view, length) {
 
   return -1;
 }
+
+export async function readZipEntry(buffer, wanted, options = {}) {
+  const view = new DataView(buffer);
+  const bytes = new Uint8Array(buffer);
+  const decoder = new TextDecoder();
+
+  for (let at = 0; at + 30 <= bytes.length; at += 1) {
+    if (view.getUint32(at, true) !== 0x04034b50) {
+      continue;
+    }
+
+    const method = view.getUint16(at + 8, true);
+    const compressedSize = view.getUint32(at + 18, true);
+    const nameLength = view.getUint16(at + 26, true);
+    const extraLength = view.getUint16(at + 28, true);
+    const name = decoder.decode(bytes.subarray(at + 30, at + 30 + nameLength));
+
+    if (name !== wanted) {
+      continue;
+    }
+
+    const start = at + 30 + nameLength + extraLength;
+    const payload = bytes.subarray(start, start + compressedSize);
+
+    // A model document is text; a 3MF texture is read as raw bytes.
+    if (method === 0) {
+      return options.binary ? payload.slice() : decoder.decode(payload);
+    }
+
+    if (typeof DecompressionStream === 'undefined') {
+      throw new Error('UNZIP_UNSUPPORTED');
+    }
+
+    const stream = new Blob([payload]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+
+    const inflated = new Response(stream);
+
+    return options.binary ? new Uint8Array(await inflated.arrayBuffer()) : await inflated.text();
+  }
+
+  return null;
+}

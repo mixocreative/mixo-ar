@@ -2,14 +2,10 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import {
-  conversionPhases,
-  groupDroppedFiles,
-  parse3mfModelXml,
-  parsePlyMesh,
-  phaseProgress,
-  plyFormatOf,
-} from '../assets/js/mixo-ar.js';
+import { parsePlyMesh, plyFormatOf } from '../assets/js/core/convert/ply.js';
+import { conversionPhases, phaseProgress } from '../assets/js/core/convert/progress.js';
+import { parse3mfModelXml } from '../assets/js/core/convert/threemf.js';
+import { groupDroppedFiles } from '../assets/js/mixo-ar.js';
 
 const ASCII_PLY = [
   'ply',
@@ -138,7 +134,7 @@ test('an exact name match beats a prefix match when attaching companions', () =>
 
 test('3MF parsing reports progress too', async () => {
   const buffer = await readFile(new URL('./fixtures/pyramid.3mf', import.meta.url));
-  const xml = await (await import('../assets/js/mixo-ar.js')).readZipEntry(
+  const xml = await (await import('../assets/js/zip-entries.js')).readZipEntry(
     buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
     '3D/3dmodel.model',
   );

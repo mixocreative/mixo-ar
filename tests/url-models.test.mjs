@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { modelKindFromName } from '../assets/js/core/convert/mesh-to-glb.js';
 import {
+  LARGE_MODEL_BYTES,
   acceptAttributeFor,
   arPreviewMode,
-  isLargeForConversion,
-  LARGE_MODEL_BYTES,
   detectLocale,
-  modelKindFromName,
+  isLargeForConversion,
   modelsFromDroppedFiles,
   modelsFromSearch,
   normalizeLocale,
@@ -260,19 +260,34 @@ test('the asset cache token is bumped whenever the scripts change', async () => 
   assert.ok(Number(tokens[0]) >= 2026092401, 'the token must be bumped past the last shipped build');
 });
 
-test('the viewer core is pinned to the same token as the page', async () => {
-  // The core is a second file the browser fetches, by its own URL, so the page's token does not
-  // reach it: an untokened import leaves a returning visitor running the new adapter against the
-  // core they cached last week, which breaks in whatever way the two versions happen to disagree.
-  const [html, script] = await Promise.all([
-    readFile(new URL('../index.html', import.meta.url), 'utf8'),
-    readFile(new URL('../assets/js/mixo-ar.js', import.meta.url), 'utf8'),
-  ]);
-  const pageToken = /mixo-ar\.js\?v=(\d+)/.exec(html);
-  const coreToken = /from '\.\/core\/viewer\.js\?v=(\d+)'/.exec(script);
+test('every module the page imports carries the pageticket', async () => {
+  // Each module is a separate URL the browser caches on its own, so the page's ?v= does not reach
+  // it: an untokened import leaves a returning visitor running today's page against a module they
+  // cached last week, which breaks in whatever way the two versions happen to disagree. Splitting a
+  // file into more modules multiplies that, so the rule is checked rather than remembered.
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const pageToken = /mixo-ar\.js\?v=(\d+)/.exec(html)[1];
 
-  assert.ok(coreToken, 'assets/js/mixo-ar.js must import the core with a ?v= token');
-  assert.equal(coreToken[1], pageToken[1], 'the core import and the page share one token');
+  const dir = new URL('../assets/js/', import.meta.url);
+  const files = (await readdir(dir, { recursive: true })).filter((name) => name.endsWith('.js'));
+  assert.ok(files.length >= 5, 'the scan found almost no modules, so it would pass vacuously');
+
+  const untokened = [];
+  for (const name of files) {
+    const source = await readFile(new URL(name, dir), 'utf8');
+
+    for (const [, spec] of source.matchAll(/(?:from|import\()\s*'(\.[^']+\.js[^']*)'/g)) {
+      const token = /\?v=(\d+)$/.exec(spec);
+
+      if (token === null) {
+        untokened.push(`${name} imports ${spec} with no ?v=`);
+      } else if (token[1] !== pageToken) {
+        untokened.push(`${name} imports ${spec}, but the page is on ${pageToken}`);
+      }
+    }
+  }
+
+  assert.deepEqual(untokened, [], 'these imports would be served from a stale cache');
 });
 
 test('the file picker is only relaxed on iOS, which filters by type identifier', () => {

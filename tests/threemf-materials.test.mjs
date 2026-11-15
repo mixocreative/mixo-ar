@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import { parse3mfColor, parse3mfModelXml, readZipEntry } from '../assets/js/mixo-ar.js';
+import { parse3mfColor, parse3mfModelXml } from '../assets/js/core/convert/threemf.js';
+import { readZipEntry } from '../assets/js/zip-entries.js';
 
 const CORE = 'http://schemas.microsoft.com/3dmanufacturing/core/2015/02';
 const MATERIAL = 'http://schemas.microsoft.com/3dmanufacturing/material/2015/02';

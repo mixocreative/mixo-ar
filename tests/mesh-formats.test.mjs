@@ -2,12 +2,10 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import {
-  modelKindFromName,
-  parse3mfModelXml,
-  parsePlyMesh,
-  readZipEntry,
-} from '../assets/js/mixo-ar.js';
+import { modelKindFromName } from '../assets/js/core/convert/mesh-to-glb.js';
+import { parsePlyMesh } from '../assets/js/core/convert/ply.js';
+import { parse3mfModelXml } from '../assets/js/core/convert/threemf.js';
+import { readZipEntry } from '../assets/js/zip-entries.js';
 
 const PLY = [
   'ply',
