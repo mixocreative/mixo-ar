@@ -6,6 +6,8 @@ import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111505';
 import { phaseProgress } from './core/convert/progress.js?v=2026111505';
 import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111505';
 import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111505';
+import { createPuck } from './puck/puck.js?v=2026111505';
+import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111505';
 import { listZipEntries } from './zip-entries.js?v=2026111505';
 
 const stage = typeof document === 'undefined' ? null : document.querySelector('[data-mixo-ar]');
@@ -232,9 +234,13 @@ async function start(stage) {
  * The puck, where the device and the browser both allow one.
  *
  * `?puck=fake` drives the whole panel from a generated turn, so the page can be built and shown
- * before any hardware exists - which is how this was written. The real source is `puck.js`, built
- * from `mixospatial`'s `web/src/puck.ts` and vendored here the way three.js already is; dropping it
- * in replaces one object and nothing else, because nothing below this line knows about a radio.
+ * before any hardware exists - which is how this was written, and for a while it was ALL that
+ * worked: the real source was described in this comment and never vendored, so the control
+ * appeared and did nothing on every browser that had Bluetooth.
+ *
+ * The real one now lives in `puck/`, copied from `mixospatial/web/src/`. It replaces one object
+ * and nothing else, because nothing below this line knows a radio exists - the panel only ever
+ * calls `on`, `connect` and `disconnect`, which the fake satisfies too.
  */
 async function enablePuck(stage, state, strings) {
   const control = document.querySelector('[data-puck-control]');
@@ -244,7 +250,14 @@ async function enablePuck(stage, state, strings) {
   }
 
   const wanted = new URLSearchParams(window.location.search).get('puck');
-  const source = wanted === 'fake' ? fakePuck() : null;
+
+  /*
+   * `?puck=fake` forces the generated source even where a radio exists, because the browser
+   * tests drive the link states through it and a real adapter would make them flaky.
+   */
+  const source = wanted === 'fake'
+    ? fakePuck()
+    : createPuck({ transport: createWebBluetoothTransport() });
 
   if (source) {
     // Only reachable with `?puck=fake`, and the browser test drives the link states through it.
