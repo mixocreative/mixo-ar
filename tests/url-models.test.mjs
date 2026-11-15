@@ -260,6 +260,21 @@ test('the asset cache token is bumped whenever the scripts change', async () => 
   assert.ok(Number(tokens[0]) >= 2026092401, 'the token must be bumped past the last shipped build');
 });
 
+test('the viewer core is pinned to the same token as the page', async () => {
+  // The core is a second file the browser fetches, by its own URL, so the page's token does not
+  // reach it: an untokened import leaves a returning visitor running the new adapter against the
+  // core they cached last week, which breaks in whatever way the two versions happen to disagree.
+  const [html, script] = await Promise.all([
+    readFile(new URL('../index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../assets/js/mixo-ar.js', import.meta.url), 'utf8'),
+  ]);
+  const pageToken = /mixo-ar\.js\?v=(\d+)/.exec(html);
+  const coreToken = /from '\.\/core\/viewer\.js\?v=(\d+)'/.exec(script);
+
+  assert.ok(coreToken, 'assets/js/mixo-ar.js must import the core with a ?v= token');
+  assert.equal(coreToken[1], pageToken[1], 'the core import and the page share one token');
+});
+
 test('the file picker is only relaxed on iOS, which filters by type identifier', () => {
   const list = '.glb,.gltf,.obj,.ply,.3mf,.stl,.mtl,.png,.jpg,.jpeg,.webp';
   const iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15';

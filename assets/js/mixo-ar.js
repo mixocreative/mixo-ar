@@ -2,7 +2,7 @@
 // says so. The rendering itself is `core/viewer.js`, which is also what mixoweb vendors - so a
 // change to how a model is shown belongs there, and a change to what may be shown belongs here.
 
-import { mountViewer, openSheets, say } from './core/viewer.js';
+import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111501';
 import { listZipEntries } from './zip-entries.js';
 
 const stage = typeof document === 'undefined' ? null : document.querySelector('[data-mixo-ar]');
