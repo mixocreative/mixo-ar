@@ -482,3 +482,70 @@ test('dropping a file still loads it, now that drops read folders too', async ()
   assert.equal(await overlayVisible(page), false);
   await page.close();
 });
+
+test('the puck drives the model, and the two ways of stopping differ', async () => {
+  // Decision 0009: a deliberate Disconnect returns the view to default, because pressing it means
+  // "I am finished". An unintended link loss freezes it instead and says so - an interruption is
+  // not an ending. The fake puck stands in for hardware that does not exist yet.
+  const { page, errors } = await openViewer(`${origin}/index.html?puck=fake&model=./assets/ar/fallback.glb`);
+
+  await page.waitForSelector('[data-puck-control]:not([hidden])');
+  await page.click('[data-puck-toggle]');
+  await page.click('[data-puck-connect]');
+
+  // Connecting walks straight into Align, which takes its reference once the puck is held still.
+  await page.waitForSelector('[data-align-card]:not([hidden])', { timeout: 10000 });
+  await page.waitForSelector('[data-align-card]', { state: 'hidden', timeout: 20000 });
+
+  const turning = await page.waitForFunction(
+    () => document.querySelector('model-viewer')?.getAttribute('orientation') || false,
+    null,
+    { timeout: 20000 },
+  );
+
+  assert.ok(await turning.jsonValue(), 'the model is being turned by the puck');
+
+  // A drop is not a disconnect: the angle the hand left behind stays on screen.
+  const frozen = await page.evaluate(async () => {
+    const before = document.querySelector('model-viewer').getAttribute('orientation');
+
+    window.__fakePuck.drop();
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    return { before, after: document.querySelector('model-viewer').getAttribute('orientation') };
+  });
+
+  assert.equal(frozen.after, frozen.before, 'a lost link freezes the view, it does not reset it');
+  assert.match(await page.textContent('[data-puck-state]'), /lost|went out of range/i);
+
+  // And the deliberate one does reset it.
+  await page.evaluate(() => {
+    document.querySelector('model-viewer').setAttribute('orientation', '0deg 0deg 0deg');
+    window.__fakePuck.connect();
+  });
+
+  // Not "the align card is hidden" - it already is, from the drop. The model moving again is what
+  // actually says this puck is connected and lined up.
+  await page.waitForFunction(
+    () => {
+      const shown = document.querySelector('model-viewer')?.getAttribute('orientation');
+
+      return Boolean(shown) && shown !== '0deg 0deg 0deg';
+    },
+    null,
+    { timeout: 25000 },
+  );
+
+  // Choosing an item closes the menu it came from, so it has to be opened again to press Disconnect.
+  await page.click('[data-puck-toggle]');
+  await page.click('[data-puck-connect]');
+  // Back to the identity, not to no attribute at all: model-viewer cannot parse an absent one.
+  await page.waitForFunction(
+    () => document.querySelector('model-viewer')?.getAttribute('orientation') === '0deg 0deg 0deg',
+    null,
+    { timeout: 10000 },
+  );
+
+  assert.deepEqual(errors, []);
+  await page.close();
+});

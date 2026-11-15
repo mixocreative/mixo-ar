@@ -2,10 +2,11 @@
 // says so. The rendering itself is `core/viewer.js`, which is also what mixoweb vendors - so a
 // change to how a model is shown belongs there, and a change to what may be shown belongs here.
 
-import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111504';
-import { phaseProgress } from './core/convert/progress.js?v=2026111504';
-import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111504';
-import { listZipEntries } from './zip-entries.js?v=2026111504';
+import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111505';
+import { phaseProgress } from './core/convert/progress.js?v=2026111505';
+import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111505';
+import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111505';
+import { listZipEntries } from './zip-entries.js?v=2026111505';
 
 const stage = typeof document === 'undefined' ? null : document.querySelector('[data-mixo-ar]');
 const LANGUAGE_STORAGE_KEY = 'mixo-ar-language';
@@ -18,8 +19,23 @@ const I18N = {
     aboutLabel: 'About',
     loadLocalLabel: 'Load a local model',
     loadFolderLabel: 'Open a folder',
-    openFiles: 'Choose files…',
-    openFolder: 'Choose a folder…',
+    openFiles: 'Files',
+    openFolder: 'Folder',
+    puckLabel: 'Puck',
+    puckIdle: 'Not connected.',
+    puckConnecting: 'Connecting - pick the puck in the browser’s list.',
+    puckConnected: 'Connected.',
+    puckLost: 'The link was lost. The view is where you left it.',
+    puckLostReason: 'The puck went out of range, or its battery ran down.',
+    puckNoSensor: 'This puck’s motion sensor did not answer, so it cannot report a direction.',
+    puckBatteryUnknown: 'battery unknown',
+    puckConnect: 'Connect',
+    puckDisconnect: 'Disconnect',
+    puckAlign: 'Line up',
+    puckResetView: 'Reset view',
+    alignAsk: 'Put the puck on the desk, top face up, with the connector pointing away from you. Hold still.',
+    alignHoldStill: 'Keep it still - it moved while being read.',
+    alignNow: 'Line up now',
     helpTitle: 'How to use this',
     diagramAlt: 'Where the controls are on the screen',
     stepModels: 'If the link lists more than one model, they are listed here. A file you open from this device shows one model at a time.',
@@ -62,8 +78,23 @@ const I18N = {
     aboutLabel: '關於',
     loadLocalLabel: '載入本機模型',
     loadFolderLabel: '開啟資料夾',
-    openFiles: '選擇檔案…',
-    openFolder: '選擇資料夾…',
+    openFiles: '檔案',
+    openFolder: '資料夾',
+    puckLabel: '控制器',
+    puckIdle: '尚未連線。',
+    puckConnecting: '連線中，請在瀏覽器的清單中選擇控制器。',
+    puckConnected: '已連線。',
+    puckLost: '連線中斷，畫面維持在你離開時的角度。',
+    puckLostReason: '控制器超出範圍，或電量耗盡。',
+    puckNoSensor: '這個控制器的動作感測器沒有回應，無法回報方向。',
+    puckBatteryUnknown: '電量未知',
+    puckConnect: '連線',
+    puckDisconnect: '中斷連線',
+    puckAlign: '對正方向',
+    puckResetView: '重設視角',
+    alignAsk: '把控制器平放在桌上，頂面朝上，接頭朝遠離你的方向，並保持不動。',
+    alignHoldStill: '請保持不動，讀取時偵測到移動。',
+    alignNow: '立即對正',
     helpTitle: '使用說明',
     diagramAlt: '畫面控制位置',
     stepModels: '如果連結包含多個模型，會在這裡列出。從裝置開啟的檔案一次顯示一個模型。',
@@ -106,8 +137,23 @@ const I18N = {
     aboutLabel: 'About',
     loadLocalLabel: 'ローカルモデルを読み込む',
     loadFolderLabel: 'フォルダを開く',
-    openFiles: 'ファイルを選ぶ…',
-    openFolder: 'フォルダを選ぶ…',
+    openFiles: 'ファイル',
+    openFolder: 'フォルダ',
+    puckLabel: 'コントローラー',
+    puckIdle: '未接続です。',
+    puckConnecting: '接続中です。ブラウザーの一覧からコントローラーを選んでください。',
+    puckConnected: '接続しました。',
+    puckLost: '接続が切れました。表示はそのままの向きで止めています。',
+    puckLostReason: 'コントローラーが範囲外になったか、電池が切れました。',
+    puckNoSensor: 'このコントローラーのモーションセンサーが応答しないため、向きを報告できません。',
+    puckBatteryUnknown: '電池残量不明',
+    puckConnect: '接続',
+    puckDisconnect: '切断',
+    puckAlign: '向きを合わせる',
+    puckResetView: '表示をリセット',
+    alignAsk: 'コントローラーを机の上に平らに置き、上面を上、コネクターを自分と反対側に向けて、動かさないでください。',
+    alignHoldStill: '動いたため読み取れません。そのまま静止してください。',
+    alignNow: 'いますぐ合わせる',
     helpTitle: '使い方',
     diagramAlt: '画面上の操作ボタンの位置',
     stepModels: 'リンクに複数のモデルが含まれる場合、ここに一覧表示されます。端末から開いたファイルは一度に 1 つのモデルを表示します。',
@@ -165,8 +211,9 @@ async function start(stage) {
   enableLanguageSwitching(stage, strings);
   enableLocalModelLoading(stage, state, strings, status);
   showArButtonPreview(stage, strings, window.location.search);
+  enablePuck(stage, state, strings);
 
-  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111504');
+  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111505');
   const decoderBase = new URL('../vendor/model-viewer/decoders/', import.meta.url).href;
   ModelViewerElement.dracoDecoderLocation = decoderBase + 'draco/';
   ModelViewerElement.ktx2TranscoderLocation = decoderBase + 'ktx2/';
@@ -179,6 +226,55 @@ async function start(stage) {
   }
 
   showModels(stage, state, strings, status, models, false, strings.loading);
+}
+
+/**
+ * The puck, where the device and the browser both allow one.
+ *
+ * `?puck=fake` drives the whole panel from a generated turn, so the page can be built and shown
+ * before any hardware exists - which is how this was written. The real source is `puck.js`, built
+ * from `mixospatial`'s `web/src/puck.ts` and vendored here the way three.js already is; dropping it
+ * in replaces one object and nothing else, because nothing below this line knows about a radio.
+ */
+async function enablePuck(stage, state, strings) {
+  const control = document.querySelector('[data-puck-control]');
+
+  if (!control) {
+    return;
+  }
+
+  const wanted = new URLSearchParams(window.location.search).get('puck');
+  const source = wanted === 'fake' ? fakePuck() : null;
+
+  if (source) {
+    // Only reachable with `?puck=fake`, and the browser test drives the link states through it.
+    window.__fakePuck = source;
+  }
+
+  if (source === null) {
+    // No real source is vendored yet. Rather than offer a Connect that cannot do anything, the
+    // control stays absent - and the availability check below is the gate it will keep.
+    if (!(await puckIsAvailable(navigator.bluetooth))) {
+      return;
+    }
+
+    return;
+  }
+
+  enablePuckPanel({
+    control,
+    strings,
+    source,
+    getViewer: () => state.viewer,
+    showDefaultView: () => {
+      if (state.viewer) {
+        // Written back, not removed: model-viewer parses this attribute on every update and throws
+        // `Cannot read properties of undefined (reading 'terms')` on an absent one. Removing it
+        // looked like the tidy way to say "no rotation" and breaks the element instead.
+        state.viewer.setAttribute('orientation', '0deg 0deg 0deg');
+      }
+    },
+  });
 }
 
 /**

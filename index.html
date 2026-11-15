@@ -11,7 +11,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./assets/favicon/favicon-16x16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/favicon/apple-touch-icon.png">
   <link rel="manifest" href="./site.webmanifest">
-  <link rel="stylesheet" href="./assets/css/mixo-ar.css?v=2026111504">
+  <link rel="stylesheet" href="./assets/css/mixo-ar.css?v=2026111505">
   <script type="importmap">
     {
       "imports": {
@@ -54,6 +54,45 @@
           <span aria-hidden="true">i</span><span class="ar-hidden" data-i18n="aboutLabel">About</span>
         </button>
         <!--
+          The puck, on a page that may never meet one. Hidden until `navigator.bluetooth` exists AND
+          `getAvailability()` says yes (decision 0010): Web Bluetooth is Chrome and Edge only, absent
+          in an iframe without permission and on a machine with no adapter, so "desktop" is the wrong
+          gate in both directions.
+        -->
+        <span class="ar-open ar-puck" data-menu-control data-puck-control hidden>
+          <button type="button" class="ar-tool" data-menu-toggle data-puck-toggle aria-haspopup="menu" aria-expanded="false" title="Puck" data-i18n-title="puckLabel">
+            <svg class="ar-tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <ellipse cx="12" cy="13.4" rx="6.4" ry="3.4" fill="none" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M5.6 13.4v2.1c0 1.9 2.9 3.4 6.4 3.4s6.4-1.5 6.4-3.4v-2.1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              <path d="M8.6 6.6a5.6 5.6 0 0 1 7.6 1.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              <path d="M16.6 5.4v2.9h-2.9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg><span class="ar-hidden" data-i18n="puckLabel">Puck</span>
+            <i class="ar-puck-dot" data-puck-dot data-link="idle" aria-hidden="true"></i>
+          </button>
+          <span class="ar-menu ar-puck-menu" data-menu role="menu" aria-label="Puck" data-i18n-aria="puckLabel" hidden>
+            <span class="ar-puck-state" data-puck-state role="status"></span>
+            <button type="button" role="menuitem" data-puck-connect>
+              <svg class="ar-menu-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 3.6v7.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M7.5 7a6.4 6.4 0 1 0 9 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg><span data-i18n="puckConnect">Connect</span>
+            </button>
+            <button type="button" role="menuitem" data-puck-align hidden>
+              <svg class="ar-menu-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="6.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M12 2.6v3.2M12 18.2v3.2M2.6 12h3.2M18.2 12h3.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <circle cx="12" cy="12" r="1.6" fill="currentColor"/>
+              </svg><span data-i18n="puckAlign">Line up</span>
+            </button>
+            <button type="button" role="menuitem" data-puck-reset>
+              <svg class="ar-menu-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M19.4 12a7.4 7.4 0 1 1-2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M18.4 3.4v3.9h-3.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg><span data-i18n="puckResetView">Reset view</span>
+            </button>
+          </span>
+        </span>
+        <!--
           One button, and the choice behind it. A file input is fixed as a file picker or a folder
           picker before it is clicked - no single OS dialog offers both - so the two live as two
           items under one control rather than as two glyphs nobody could tell apart. The folder item
@@ -68,8 +107,17 @@
             </svg><span class="ar-hidden" data-i18n="loadLocalLabel">Load a local model</span>
           </button>
           <span class="ar-menu" data-menu role="menu" aria-label="Open a model" data-i18n-aria="loadLocalLabel" hidden>
-            <label role="menuitem" for="model-file-input" tabindex="0" data-i18n="openFiles">Choose files…</label>
-            <label role="menuitem" for="model-folder-input" tabindex="0" data-folder-pick hidden data-i18n="openFolder">Choose a folder…</label>
+            <label role="menuitem" for="model-file-input" tabindex="0">
+              <svg class="ar-menu-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M13.6 3.5H7.2A1.7 1.7 0 0 0 5.5 5.2v13.6a1.7 1.7 0 0 0 1.7 1.7h9.6a1.7 1.7 0 0 0 1.7-1.7V8.2z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                <path d="M13.4 3.6v4.8h4.9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+              </svg><span data-i18n="openFiles">Files</span>
+            </label>
+            <label role="menuitem" for="model-folder-input" tabindex="0" data-folder-pick hidden>
+              <svg class="ar-menu-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M3.5 7.3A1.6 1.6 0 0 1 5.1 5.7h3.6l1.8 2.2h8.4a1.6 1.6 0 0 1 1.6 1.6v7.2a1.6 1.6 0 0 1-1.6 1.6H5.1a1.6 1.6 0 0 1-1.6-1.6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+              </svg><span data-i18n="openFolder">Folder</span>
+            </label>
           </span>
         </span>
       </span>
@@ -86,13 +134,28 @@
     </button>
   </main>
 
+  <aside class="ar-align-card" data-align-card hidden>
+    <svg class="ar-align-figure" viewBox="0 0 120 70" aria-hidden="true" focusable="false">
+      <path d="M8 56h104" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+      <ellipse cx="60" cy="44" rx="26" ry="10" fill="none" stroke="currentColor" stroke-width="2.4"/>
+      <path d="M34 44v6c0 5.5 11.6 10 26 10s26-4.5 26-10v-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+      <circle cx="60" cy="40" r="3.2" fill="currentColor"/>
+      <path d="M60 28V12m0 0-5 5m5-5 5 5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <p data-align-ask data-i18n="alignAsk">Put the puck on the desk, top face up, with the connector pointing away from you. Hold still.</p>
+    <span class="ar-align-actions">
+      <button type="button" class="ar-close" data-align-now data-i18n="alignNow">Line up now</button>
+      <button type="button" class="ar-close" data-align-cancel data-i18n="close">Close</button>
+    </span>
+  </aside>
+
   <dialog id="ar-instructions" class="ar-sheet">
     <h1 data-i18n="helpTitle">How to use this</h1>
     <!-- Tokened like the script and the stylesheet: this drawing is documentation of the chrome, so
          it goes stale exactly when the chrome changes - which it just did, and a returning visitor
          was still shown the old glyph. The brand images and the fallback model carry no token
          because they do not describe the UI. -->
-    <img class="ar-diagram" src="./assets/ar/instructions.svg?v=2026111504" alt="Where the controls are on the screen" data-i18n-alt="diagramAlt">
+    <img class="ar-diagram" src="./assets/ar/instructions.svg?v=2026111505" alt="Where the controls are on the screen" data-i18n-alt="diagramAlt">
     <ol class="ar-steps">
       <li><span class="ar-step">1</span><span data-i18n="stepModels">If the URL or a local load includes more than one model, they are listed here.</span></li>
       <li><span class="ar-step">2</span><span><span data-i18n="stepArBefore">On a phone that supports it,</span> <span class="ar-chip"><svg class="ar-glyph ar-scan-glyph" viewBox="0 0 32 24" aria-hidden="true" focusable="false"><path class="ar-scan-corner" d="M2 7V2h5M25 2h5v5M30 17v5h-5M7 22H2v-5"/><path class="ar-scan-cube" d="M16 4 23 8 16 12 9 8zM9 9.5l7 4v7l-7-4zM23 9.5l-7 4v7l7-4z"/></svg><span aria-hidden="true">AR</span></span> <span data-i18n="stepArAfter">places the model in the room in front of you.</span></span></li>
@@ -130,6 +193,6 @@ background: linear-gradient(307deg,rgba(96, 35, 166, 1) 0%, rgba(207, 0, 41, 1) 
     <form method="dialog"><button class="ar-close" data-i18n="close">Close</button></form>
   </dialog>
 
-  <script type="module" src="./assets/js/mixo-ar.js?v=2026111504"></script>
+  <script type="module" src="./assets/js/mixo-ar.js?v=2026111505"></script>
 </body>
 </html>

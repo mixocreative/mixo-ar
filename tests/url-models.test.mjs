@@ -356,3 +356,12 @@ test('folder picking is offered only where the browser supports it', async () =>
   assert.equal(supportsFolderPicking({}), false, 'absent means the control stays hidden');
   assert.equal(supportsFolderPicking(null), false);
 });
+
+test('a menu item that is hidden is actually hidden', async () => {
+  // `hidden` is only the user agent's `display: none`, and every rule with an explicit `display`
+  // beats it. The puck's Line up is hidden until there is a puck, and the folder item until the
+  // browser can open a folder - both would otherwise sit there doing nothing when pressed.
+  const css = await readFile(new URL('../assets/css/mixo-ar.css', import.meta.url), 'utf8');
+
+  assert.match(css, /\.ar-menu label\[hidden\],\s*\n\.ar-menu button\[hidden\] \{ display: none; \}/);
+});

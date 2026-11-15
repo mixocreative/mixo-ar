@@ -208,7 +208,8 @@ model-viewer {
 .ar-menu[hidden] { display: none; }
 
 .ar-lang-menu button,
-.ar-menu label {
+.ar-menu label,
+.ar-menu button {
   min-height: 34px;
   padding: 0 10px;
   border: none;
@@ -227,7 +228,8 @@ model-viewer {
 }
 
 .ar-lang-menu button:focus-visible,
-.ar-menu label:focus-visible { outline: 3px solid var(--ar-gold); outline-offset: 2px; }
+.ar-menu label:focus-visible,
+.ar-menu button:focus-visible { outline: 3px solid var(--ar-gold); outline-offset: 2px; }
 
 /* The Open menu sits under a button near the right edge, where a centred menu would hang off the
    screen. The language one is near the left, so it keeps the centred anchor it already had. */
@@ -238,7 +240,14 @@ model-viewer {
   transform: none;
 }
 
-.ar-menu label {
+/* `hidden` is only a UA `display: none`, so any explicit `display` below beats it. Without this,
+   Line up shows while disconnected and the folder item shows on a browser that cannot open one -
+   both of them controls that do nothing, which is the thing `hidden` was there to prevent. */
+.ar-menu label[hidden],
+.ar-menu button[hidden] { display: none; }
+
+.ar-menu label,
+.ar-menu button {
   display: flex;
   align-items: center;
   min-height: var(--ar-touch);
@@ -556,6 +565,83 @@ model-viewer {
 .ar-folder-note[hidden] { display: none; }
 
 
+
+/*
+  The puck's own controls. The dot on the closed button is decision 0010's rule that the link's
+  state must be legible without opening anything: somebody whose model stopped following should not
+  have to go hunting for the reason.
+*/
+/* An `<i>`, not a `<span>`: `.ar-tool > span[aria-hidden="true"]` above claims every span in a tool
+   button as a 22px glyph and wins on specificity, which turned this 9px dot into a grey disc that
+   was always on screen. */
+.ar-puck-dot {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--ar-card);
+  border-radius: 50%;
+  background: #9b9b9b;
+}
+
+.ar-puck-dot[data-link="connected"] { background: #2f9e44; }
+.ar-puck-dot[data-link="connecting"] { background: var(--ar-gold); }
+.ar-puck-dot[data-link="lost"] { background: var(--ar-red); }
+.ar-puck-dot[data-link="idle"] { display: none; }
+
+.ar-puck-menu { min-width: 210px; }
+
+.ar-puck-state {
+  display: block;
+  padding: 6px 10px 8px;
+  border-bottom: 1px solid var(--ar-line);
+  color: var(--ar-sheet-ink);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+/*
+  Align is a card, not a dialog: `.ar-sheet::backdrop` is 55% black, which would hide the very model
+  the person is lining the puck up against.
+*/
+.ar-align-card {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 6;
+  width: min(300px, calc(100vw - 32px));
+  padding: 14px 16px 16px;
+  border: 1px solid var(--ar-glass-line);
+  border-radius: 16px;
+  background: var(--ar-glass-bg);
+  color: var(--ar-sheet-ink);
+  box-shadow: var(--ar-glass-shadow) 0 10px 30px;
+  backdrop-filter: blur(var(--ar-glass-blur)) saturate(1.2);
+  -webkit-backdrop-filter: blur(var(--ar-glass-blur)) saturate(1.2);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.ar-align-card[hidden] { display: none; }
+
+.ar-align-figure {
+  display: block;
+  width: 120px;
+  height: 70px;
+  margin: 0 auto 8px;
+  color: var(--ar-sheet-ink);
+}
+
+.ar-align-card p { margin: 0 0 12px; }
+
+.ar-menu-icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+}
 
 .ar-links {
   display: flex;
