@@ -1,3 +1,8 @@
+// This page: where its model list comes from, which files it will accept, and in which language it
+// says so. The rendering itself is `core/viewer.js`, which is also what mixoweb vendors - so a
+// change to how a model is shown belongs there, and a change to what may be shown belongs here.
+
+import { mountViewer, openSheets, say } from './core/viewer.js';
 import { listZipEntries } from './zip-entries.js';
 
 const stage = typeof document === 'undefined' ? null : document.querySelector('[data-mixo-ar]');
@@ -423,7 +428,27 @@ function placeholder(stage, baseUrl) {
 function showModels(stage, state, strings, status, models, isFallback, message) {
   clearMountedModels(stage, state);
 
-  const mounted = mount(stage, status, strings, models, isFallback, message);
+  // This page's rule about what may be loaded, applied before the renderer sees anything: an
+  // http(s) URL, or a blob URL this page made itself from a file somebody picked. The core takes
+  // the list as given, so a host that skips this step is the host with the hole.
+  const allowed = models
+    .map((model) => ({ ...model, url: modelSource(model, window.location.href) }))
+    .filter((model) => model.url !== null);
+
+  const mounted = mountViewer({
+    stage,
+    status,
+    strings,
+    models: allowed,
+    isFallback,
+    message,
+    // A link can point at an .obj, .ply, .3mf or .stl: fetch it, resolve its dependencies from the
+    // same folder, and convert it before display. GLB and blob URLs pass straight through.
+    prepare: viewableModelUrl,
+    // Displaying is the final phase of the bar, so a local conversion does not jump back to a
+    // small number once the converted GLB starts loading.
+    progress: (fraction) => phaseProgress('displaying', fraction),
+  });
 
   state.viewer = mounted.viewer;
   state.variants = mounted.variants;
@@ -455,163 +480,6 @@ function clearMountedModels(stage, state) {
   state.objectUrls = [];
 }
 
-function mount(stage, status, strings, models, isFallback, message) {
-  const first = modelSource(models[0], window.location.href);
-
-  if (first === null) {
-    say(status, strings.failed);
-
-    return { viewer: null, variants: null };
-  }
-
-  let standing = message;
-  say(status, standing, isFallback ? strings.fallback : '');
-
-  const viewer = document.createElement('model-viewer');
-  const attributes = {
-    'camera-controls': '',
-    'touch-action': 'pan-y',
-    'auto-rotate': '',
-    ar: '',
-    'ar-modes': 'webxr scene-viewer quick-look',
-    'ar-placement': 'floor',
-    'shadow-intensity': '1',
-    'shadow-softness': '1',
-    'environment-image': 'neutral',
-    'tone-mapping': 'commerce',
-    exposure: '0.9',
-    loading: 'eager',
-    alt: strings.alt || '',
-  };
-
-  for (const name of Object.keys(attributes)) {
-    viewer.setAttribute(name, attributes[name]);
-  }
-
-  const arButton = document.getElementById('ar-button');
-
-  if (arButton) {
-    arButton.hidden = false;
-    viewer.append(arButton);
-  }
-
-  viewer.addEventListener('progress', (event) => {
-    const total = event.detail.totalProgress;
-
-    if (total >= 1) {
-      return;
-    }
-
-    // Displaying is the final phase of the bar, so a local conversion does not jump
-    // back to a small number once the converted GLB starts loading.
-    const overall = phaseProgress('displaying', total);
-
-    status.hidden = false;
-    say(status, standing, isFallback ? strings.fallback : '', Math.round(overall * 100) + '%', overall);
-  });
-
-  viewer.addEventListener('load', () => {
-    if (isFallback) {
-      say(status, standing, strings.fallback);
-      status.hidden = false;
-
-      return;
-    }
-
-    status.hidden = true;
-  });
-
-  viewer.addEventListener('error', (event) => {
-    const detail = (event.detail && event.detail.sourceError && event.detail.sourceError.message) || '';
-    standing = /draco|ktx2|basis/i.test(detail) ? strings.compressed : strings.failed;
-    status.hidden = false;
-
-    if (isFallback) {
-      say(status, standing);
-
-      return;
-    }
-
-    isFallback = true;
-    say(status, standing, strings.fallback);
-    viewer.src = stage.dataset.fallback;
-  });
-
-  // A link can point at an .obj, .ply, .3mf or .stl. Those are fetched, their
-  // dependencies resolved from the same folder, and converted before display.
-  if (modelKindFromName(String(first).split('?')[0]) === 'mesh') {
-    viewer.removeAttribute('src');
-    viewableModelUrl(first).then((ready) => {
-      viewer.src = ready;
-    }).catch((failure) => {
-      isFallback = true;
-
-      if (failure && failure.message === 'MODEL_FETCH_BLOCKED') {
-        standing = strings.blocked;
-      }
-
-      say(status, standing, strings.fallback);
-      status.hidden = false;
-      viewer.src = stage.dataset.fallback;
-    });
-  } else {
-    viewer.src = first;
-  }
-
-  stage.append(viewer);
-
-  let variants = null;
-
-  if (models.length > 1) {
-    variants = switcher(models, viewer, status, strings);
-    stage.append(variants);
-  }
-
-  return { viewer, variants };
-}
-
-function switcher(models, viewer, status, strings) {
-  const select = document.createElement('select');
-  select.className = 'ar-variants';
-  select.setAttribute('aria-label', strings.models || '');
-
-  const urls = [];
-
-  for (const model of models) {
-    const url = modelSource(model, window.location.href);
-
-    if (url === null) {
-      continue;
-    }
-
-    const option = document.createElement('option');
-    option.value = String(urls.length);
-    option.textContent = model.size ? model.displayName + ' · ' + model.size : model.displayName;
-    select.append(option);
-    urls.push(url);
-  }
-
-  select.addEventListener('change', () => {
-    const url = urls[Number(select.value)];
-
-    if (url === undefined) {
-      return;
-    }
-
-    say(status, strings.loading);
-    status.hidden = false;
-
-    viewableModelUrl(url).then((ready) => {
-      viewer.src = ready;
-    }).catch((failure) => {
-      say(status, failure && failure.message === 'MODEL_FETCH_BLOCKED' ? strings.blocked : strings.failed);
-      status.hidden = false;
-    });
-  });
-
-  return select;
-}
-
 function modelSource(model, baseUrl) {
   if (!model) {
     return null;
@@ -622,18 +490,6 @@ function modelSource(model, baseUrl) {
   }
 
   return allowedModelUrl(model.url, baseUrl);
-}
-
-function openSheets() {
-  for (const button of document.querySelectorAll('[data-sheet]')) {
-    button.addEventListener('click', () => {
-      const sheet = document.getElementById(button.dataset.sheet);
-
-      if (sheet && typeof sheet.showModal === 'function') {
-        sheet.showModal();
-      }
-    });
-  }
 }
 
 /**
@@ -2089,45 +1945,6 @@ function exportGlb(scene, exporter) {
       { binary: true, onlyVisible: true }
     );
   });
-}
-
-function say(status, line, second, percent, fraction) {
-  status.textContent = line || '';
-
-  if (second) {
-    status.append(document.createElement('br'), second);
-  }
-
-  if (percent) {
-    const figure = document.createElement('span');
-    figure.className = 'ar-progress';
-    figure.textContent = percent;
-    status.append(figure);
-  }
-
-  if (fraction === null || typeof fraction === 'number') {
-    const track = document.createElement('span');
-    const fill = document.createElement('span');
-
-    track.className = 'ar-progress-track';
-    track.setAttribute('role', 'progressbar');
-    track.setAttribute('aria-valuemin', '0');
-    track.setAttribute('aria-valuemax', '100');
-    fill.className = 'ar-progress-fill';
-
-    if (fraction === null) {
-      // Some steps report nothing at all - the GLTF exporter has no progress hook -
-      // so the bar says "working" instead of inventing a number.
-      track.classList.add('is-indeterminate');
-      track.removeAttribute('aria-valuenow');
-    } else {
-      track.setAttribute('aria-valuenow', String(Math.round(fraction * 100)));
-      fill.style.width = `${Math.round(fraction * 100)}%`;
-    }
-
-    track.append(fill);
-    status.append(track);
-  }
 }
 
 export function modelsFromSearch(search, baseUrl = 'https://example.com/') {
