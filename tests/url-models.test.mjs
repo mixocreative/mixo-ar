@@ -143,15 +143,37 @@ test('standalone page has a mobile file picker for local model loading', async (
   }
 });
 
-test('standalone page uses only the plus tool for local loading', async () => {
+test('exactly one tool in the chrome opens a local model', async () => {
+  // Two glyphs that both mean "open something" was one too many: the folder one went unrecognised
+  // until the owner asked what the square did. The folder picker is a second OS dialog no single
+  // input can offer alongside the file one, so it is still here - in the help sheet, beside the
+  // sentence that says why it exists, rather than as a second glyph in the toolbar.
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
   assert.doesNotMatch(html, /class="ar-empty-panel"/);
   assert.doesNotMatch(html, /class="ar-file-input"/);
   assert.match(html, /<input id="model-file-input" class="ar-hidden" type="file"/);
-  assert.match(html, /<label class="ar-tool" for="model-file-input" role="button" tabindex="0">/);
+  assert.match(html, /<label class="ar-tool" for="model-file-input" role="button" tabindex="0"/);
   assert.match(html, /aria-label="Load a model"/);
   assert.doesNotMatch(html, /<p class="ar-status" role="status">Loading the model/);
+
+  assert.doesNotMatch(html, /<label class="ar-tool" for="model-folder-input"/, 'the folder picker is not a toolbar glyph');
+  assert.match(html, /class="ar-folder-note"[^>]*data-folder-pick/, 'and it is in the help sheet, still hidden where folders are unsupported');
+  assert.match(html, /<label class="ar-link-button" for="model-folder-input"/);
+});
+
+test('every control in the chrome names itself on hover', async () => {
+  // The words beside each glyph are `.ar-hidden` - a screen reader hears them, a sighted visitor
+  // with a mouse gets nothing at all. That is the whole reason a square could sit in the toolbar
+  // meaning "open a folder" and nobody could tell. A `title` is the one name they do see.
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const tools = [...html.matchAll(/<(?:button|label)[^>]*class="ar-tool"[^>]*>/g)].map(([tag]) => tag);
+
+  assert.ok(tools.length >= 3, 'the scan found almost no tools, so it would pass vacuously');
+
+  const unnamed = tools.filter((tag) => !/\btitle="/.test(tag) || !/\bdata-i18n-title="/.test(tag));
+
+  assert.deepEqual(unnamed, [], 'these controls have no hover name, or one that never gets translated');
 });
 
 test('standalone page includes language and about icon controls', async () => {

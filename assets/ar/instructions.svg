@@ -69,6 +69,5 @@
   <path class="st2" d="M162,54h24c6.6,0,12,5.4,12,12h0c0,6.6-5.4,12-12,12h-24c-6.6,0-12-5.4-12-12h0c0-6.6,5.4-12,12-12Z"/>
   <circle class="st8" cx="196" cy="92" r="11"/>
   <text class="st0" transform="translate(192.1 97)"><tspan x="0" y="0">3</tspan></text>
-  <rect x="179.2" y="64.5" width="14.6" height="2.9" transform="translate(252.5 -120.5) rotate(90)"/>
-  <rect x="179.2" y="64.5" width="14.6" height="2.9" transform="translate(373.1 132) rotate(180)"/>
+  <path d="M186.5,72.8v-13.1M181.4,64.6l5.1-5.1,5.1,5.1" fill="none" stroke="#000" stroke-width="2.9" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

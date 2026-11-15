@@ -504,9 +504,10 @@ model-viewer {
   margin: 0 0 16px;
   padding: 10px 12px;
   border-left: 3px solid var(--ar-red);
+  /* The red belongs to the 3px rule on the left, not to the fill. `--ar-sheet-card-ink` is a dark
+     ink chosen for the glass card, and a second `background` underneath it put that ink on red -
+     the one unreadable paragraph on the page, and the one carrying the warning people most need. */
   background: var(--ar-glass-card);
-  background: var(--ar-red);
-  
   color: var(--ar-sheet-card-ink);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.55),
@@ -516,6 +517,34 @@ model-viewer {
   font-size: 0.85rem;
   line-height: 1.5;
 }
+
+/*
+  The folder route, kept beside the sentence that says why it exists rather than as a second glyph
+  in the toolbar. Hidden until the browser proves it can hand over a folder at all: `data-folder-pick`
+  is un-hidden by `supportsFolderPicking`, so Chrome on Android never offers a control it cannot honour.
+*/
+.ar-load-note,
+.ar-folder-note {
+  margin: 0 0 16px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.ar-folder-note[hidden] { display: none; }
+
+.ar-link-button {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 7px 14px;
+  border: 1px solid var(--ar-line);
+  border-radius: 999px;
+  background: var(--ar-glass-card);
+  color: var(--ar-sheet-card-ink);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.ar-link-button:focus-visible { outline: 3px solid var(--ar-gold); outline-offset: 2px; }
 
 .ar-links {
   display: flex;

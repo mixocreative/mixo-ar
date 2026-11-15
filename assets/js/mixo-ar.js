@@ -2,10 +2,10 @@
 // says so. The rendering itself is `core/viewer.js`, which is also what mixoweb vendors - so a
 // change to how a model is shown belongs there, and a change to what may be shown belongs here.
 
-import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111501';
-import { phaseProgress } from './core/convert/progress.js?v=2026111501';
-import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111501';
-import { listZipEntries } from './zip-entries.js?v=2026111501';
+import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111502';
+import { phaseProgress } from './core/convert/progress.js?v=2026111502';
+import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111502';
+import { listZipEntries } from './zip-entries.js?v=2026111502';
 
 const stage = typeof document === 'undefined' ? null : document.querySelector('[data-mixo-ar]');
 const LANGUAGE_STORAGE_KEY = 'mixo-ar-language';
@@ -24,6 +24,8 @@ const I18N = {
     stepArBefore: 'On a phone that supports it,',
     stepArAfter: 'places the model in the room in front of you.',
     stepInfo: 'Load models, view descriptions, and see creator info.',
+    stepLoad: 'Open a model from this device, or drag one onto the page. GLB, GLTF, OBJ, PLY, 3MF, STL, or a .zip holding a model with its files.',
+    folderNote: 'A model whose textures are separate files - an .obj with its .mtl - needs all of them, and a page cannot read a file you did not pick. Open its whole folder instead:',
     caveat: 'AR does not start inside the browsers built into LINE, Facebook and other apps. Copy the link and open it in Chrome or Safari.',
     aboutTitle: 'About',
     aboutBody: 'mixocreative 3D/AR viewer.',
@@ -64,6 +66,8 @@ const I18N = {
     stepArBefore: '在支援 AR 的手機上，',
     stepArAfter: '可以把模型放到你面前的空間中。',
     stepInfo: '這裡可以載入3D模型、查看說明與製作者資訊。',
+    stepLoad: '從這台裝置開啟模型，或把檔案拖放到畫面上。支援 GLB、GLTF、OBJ、PLY、3MF、STL，或包含模型與相關檔案的 .zip。',
+    folderNote: '材質為獨立檔案的模型（.obj 搭配 .mtl）需要全部檔案，而網頁無法讀取你沒有選取的檔案。請改為開啟整個資料夾：',
     caveat: 'LINE、Facebook 等 App 內建瀏覽器無法啟動 AR。請複製連結，改用 Chrome 或 Safari 開啟。',
     aboutTitle: '關於',
     aboutBody: 'mixocreative  3D/AR 檢視器。',
@@ -104,6 +108,8 @@ const I18N = {
     stepArBefore: '対応しているスマートフォンでは、',
     stepArAfter: 'モデルを目の前の空間に配置できます。',
     stepInfo: 'ここでは3Dモデルの読み込み、説明の閲覧、製作者情報の確認ができます。',
+    stepLoad: 'この端末からモデルを開くか、ファイルを画面にドラッグしてください。GLB、GLTF、OBJ、PLY、3MF、STL、またはモデルと関連ファイルを含む .zip に対応します。',
+    folderNote: 'テクスチャが別ファイルのモデル（.obj と .mtl）はすべてのファイルが必要ですが、選択していないファイルをページは読み取れません。フォルダごと開いてください：',
     caveat: 'LINE、Facebook などのアプリ内ブラウザでは AR が開始できません。リンクをコピーして Chrome または Safari で開いてください。',
     aboutTitle: 'About',
     aboutBody: 'mixocreative の 3D/AR ビューアーです。',
@@ -153,7 +159,7 @@ async function start(stage) {
   enableLocalModelLoading(stage, state, strings, status);
   showArButtonPreview(stage, strings, window.location.search);
 
-  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111501');
+  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111502');
   const decoderBase = new URL('../vendor/model-viewer/decoders/', import.meta.url).href;
   ModelViewerElement.dracoDecoderLocation = decoderBase + 'draco/';
   ModelViewerElement.ktx2TranscoderLocation = decoderBase + 'ktx2/';
@@ -323,6 +329,13 @@ function applyTranslations(strings) {
 
   for (const element of document.querySelectorAll('[data-i18n-alt]')) {
     element.setAttribute('alt', strings[element.dataset.i18nAlt] || '');
+  }
+
+  // The tooltip is the only name a sighted visitor on a desktop ever sees: every control up there is
+  // a glyph, and the words beside it are `.ar-hidden`, for screen readers alone. That is why a
+  // folder button drawn as a square could sit there unrecognised.
+  for (const element of document.querySelectorAll('[data-i18n-title]')) {
+    element.setAttribute('title', strings[element.dataset.i18nTitle] || '');
   }
 
   updateLanguageMenu(strings.locale);
@@ -655,6 +668,25 @@ function enableLocalModelLoading(stage, state, strings, status) {
         input.click();
       });
     }
+  }
+
+  // A `<label>` that looks like a button is only a button to a mouse: a click on it opens the
+  // picker, Enter on it does nothing, so every one of them needs this or it is keyboard-dead. The
+  // folder control in the help sheet is one of these too, which is why this reads the `for`
+  // attribute rather than naming the file input.
+  for (const label of document.querySelectorAll('label[role="button"][for]')) {
+    label.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') {
+        return;
+      }
+
+      const target = document.getElementById(label.getAttribute('for'));
+
+      if (target) {
+        event.preventDefault();
+        target.click();
+      }
+    });
   }
 
   if (input) {
