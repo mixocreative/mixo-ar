@@ -26,7 +26,6 @@ with the orientation being displayed.
 """
 
 import json
-import math
 import struct
 from io import BytesIO
 from pathlib import Path
@@ -113,15 +112,30 @@ def geometry():
     """24 vertices - four per face, because each face needs its own texture coordinates."""
     positions, normals, uvs, indices = [], [], [], []
 
-    # -90 degrees about X: maps the puck's +Z (its top) onto the viewer's +Y (up). See the module
-    # docstring; this is the one fixed offset in the file.
-    def tilt(v):
-        x, y, z = v
-        angle = -math.pi / 2
-        return (x, y * math.cos(angle) - z * math.sin(angle), y * math.sin(angle) + z * math.cos(angle))
-
+    # THE RESTING POSE, and it is taken straight from PROTOCOL.md section 2:
+    #
+    #     "look along +X (connector pointing away from you) with the top face up,
+    #      and +Y is to your left"
+    #
+    # So at the identity quaternion the cube must show the puck as it sits on a desk with its
+    # connector pointing away. That means mapping the puck's axes onto the scene's:
+    #
+    #     puck +X (USB)  ->  scene -Z   away from the viewer
+    #     puck +Z (top)  ->  scene +Y   up
+    #     puck +Y        ->  scene -X   to your left
+    #
+    # which is (x, y, z) -> (-y, z, -x). It is a proper rotation, not a flip - the handedness is
+    # preserved, which matters because a mirrored model would turn the wrong way about one axis
+    # and look like a protocol bug.
+    #
+    # The offset lives HERE, in the model's own geometry, and never in the stream: the device
+    # reports its raw frame and no consumer's convention is allowed back up the wire.
     def cross(a, b):
         return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+
+    def to_scene(v):
+        x, y, z = v
+        return (-y, z, -x)
 
     for index, (_, normal, up, _) in enumerate(FACES):
         # Derived rather than listed, so `right x up = normal` holds by construction. Listing it
@@ -140,12 +154,12 @@ def geometry():
             [(-1, -1), (1, -1), (1, 1), (-1, 1)],
             [(u0, v1), (u1, v1), (u1, v0), (u0, v0)],
         ):
-            corner = tilt(tuple(
+            corner = to_scene(tuple(
                 normal[axis] * HALF + right[axis] * sx * HALF + up[axis] * sy * HALF
                 for axis in range(3)
             ))
             positions.extend(corner)
-            normals.extend(tilt(normal))
+            normals.extend(to_scene(normal))
             uvs.extend((u, v))
 
         indices.extend([base, base + 1, base + 2, base, base + 2, base + 3])
