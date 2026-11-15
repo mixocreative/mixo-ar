@@ -61,11 +61,14 @@
         -->
         <span class="ar-open ar-puck" data-menu-control data-puck-control hidden>
           <button type="button" class="ar-tool" data-menu-toggle data-puck-toggle aria-haspopup="menu" aria-expanded="false" title="Puck" data-i18n-title="puckLabel">
+            <!--
+              A cube, drawn as an isometric box: three visible faces sharing the top vertex.
+              The outline is one closed hexagon and the three inner edges meet at the centre, so
+              the shape reads at 24px where a wireframe cube turns to mush.
+            -->
             <svg class="ar-tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <ellipse cx="12" cy="13.4" rx="6.4" ry="3.4" fill="none" stroke="currentColor" stroke-width="1.7"/>
-              <path d="M5.6 13.4v2.1c0 1.9 2.9 3.4 6.4 3.4s6.4-1.5 6.4-3.4v-2.1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-              <path d="M8.6 6.6a5.6 5.6 0 0 1 7.6 1.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-              <path d="M16.6 5.4v2.9h-2.9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 3.2 20.1 7.6v8.8L12 20.8 3.9 16.4V7.6Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+              <path d="M12 12 20.1 7.6M12 12 3.9 7.6M12 12v8.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
             </svg><span class="ar-hidden" data-i18n="puckLabel">Puck</span>
             <i class="ar-puck-dot" data-puck-dot data-link="idle" aria-hidden="true"></i>
           </button>
