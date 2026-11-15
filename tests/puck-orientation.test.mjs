@@ -11,6 +11,7 @@ import {
   orientationAttribute,
   readStatus,
   relativeTo,
+  toSceneFrame,
 } from '../assets/js/puck-orientation.js';
 
 const DEGREES = Math.PI / 180;
@@ -52,7 +53,10 @@ test('the attribute round-trips a quaternion, including through the pole', () =>
       const q = multiply(multiply(about([0, 1, 0], 33), about([1, 0, 0], pitch)), about([0, 0, 1], roll));
       const shown = fromOrientationAttribute(orientationAttribute(q));
 
-      worst = Math.max(worst, angleBetween(q, shown));
+      // Against the SCENE-frame rotation, not the puck's: `orientationAttribute` crosses into
+      // the scene's axes because the cube's geometry is already there. Comparing against `q`
+      // would be asking the round trip to undo a basis change it never applied.
+      worst = Math.max(worst, angleBetween(toSceneFrame(q), shown));
     }
   }
 
@@ -64,8 +68,51 @@ test('exactly at the pole, where yaw and roll are not separable', () => {
     const q = multiply(about([0, 1, 0], 25), about([1, 0, 0], sign * 90));
     const shown = fromOrientationAttribute(orientationAttribute(q));
 
-    assert.ok(angleBetween(q, shown) < 0.01, 'the composition is still right');
+    assert.ok(angleBetween(toSceneFrame(q), shown) < 0.01, 'the composition is still right');
   }
+});
+
+test('a puck turn appears about the matching SCENE axis, not the puck one', () => {
+  // THE BUG THIS FILE EXISTS TO PREVENT FROM COMING BACK.
+  //
+  // `tools/make-orientation-cube.py` bakes `(x, y, z) -> (-y, z, -x)` into the cube's vertices, so
+  // the geometry already lives in the scene's axes. For a while the rotation did not make that
+  // crossing, and the model sat correctly at rest while turning about the wrong axis - which reads
+  // as a fault in the device and is not one.
+  //
+  // Each case below is one row of the generator's own comment, so if the cube is ever regenerated
+  // with a different map these fail and name which row moved.
+  const cases = [
+    ['puck +Z, the top face', [0, 0, 1], [0, 1, 0], 'scene +Y, up'],
+    ['puck +X, the USB end', [1, 0, 0], [0, 0, -1], 'scene -Z, away from the viewer'],
+    ['puck +Y', [0, 1, 0], [-1, 0, 0], 'scene -X, to the left'],
+  ];
+
+  for (const [what, puckAxis, sceneAxis, where] of cases) {
+    for (const angle of [30, 90, -120]) {
+      const converted = toSceneFrame(about(puckAxis, angle));
+      const expected = about(sceneAxis, angle);
+
+      assert.ok(
+        angleBetween(converted, expected) < 1e-9,
+        `a turn about ${what} must show as a turn about ${where}`,
+      );
+    }
+  }
+});
+
+test('the scene conversion is a proper rotation, so nothing is mirrored', () => {
+  // A mirrored map would also line the axes up at rest and then reverse two of the three turns.
+  // The generator claims a proper rotation; this is that claim as arithmetic.
+  const axes = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  const mapped = axes.map(([x, y, z]) => [-y, z, -x]);
+  const [a, b, c] = mapped;
+  const determinant =
+    a[0] * (b[1] * c[2] - b[2] * c[1]) -
+    a[1] * (b[0] * c[2] - b[2] * c[0]) +
+    a[2] * (b[0] * c[1] - b[1] * c[0]);
+
+  assert.equal(determinant, 1, "the cube generator's map must be a rotation, not a reflection");
 });
 
 test('the zero lives here, not on the wire', () => {

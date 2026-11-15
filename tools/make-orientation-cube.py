@@ -140,6 +140,17 @@ def geometry():
     #
     # The offset lives HERE, in the model's own geometry, and never in the stream: the device
     # reports its raw frame and no consumer's convention is allowed back up the wire.
+    #
+    # BUT IT IS NOT FREE, and this comment used to claim it was. An earlier version said the
+    # offset "never interacts with the orientation being displayed". It does. Baking B into the
+    # vertices and then applying the raw quaternion renders R.B.p when the right answer is B.R.p:
+    # the model sits correctly at rest and turns about the wrong axis, which reads as a fault in
+    # the device and is not one.
+    #
+    # `assets/js/puck-orientation.js` crosses the rotation into the same frame with `toSceneFrame`,
+    # and `tests/puck-orientation.test.mjs` pins each row of the table above. IF THE MAP BELOW
+    # CHANGES, THAT FUNCTION CHANGES WITH IT - they are one decision, and the tests say so by
+    # failing with the name of whichever row moved.
     def cross(a, b):
         return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
 
