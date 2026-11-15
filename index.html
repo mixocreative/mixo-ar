@@ -11,7 +11,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./assets/favicon/favicon-16x16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/favicon/apple-touch-icon.png">
   <link rel="manifest" href="./site.webmanifest">
-  <link rel="stylesheet" href="./assets/css/mixo-ar.css?v=2026111503">
+  <link rel="stylesheet" href="./assets/css/mixo-ar.css?v=2026111504">
   <script type="importmap">
     {
       "imports": {
@@ -31,15 +31,15 @@
           <img class="ar-brand-mark" src="./assets/ar/brand/logo-3d.png" alt="mixocreative">
           <img class="ar-brand-type" src="./assets/ar/brand/logo-type.svg" alt="" aria-hidden="true">
         </a>
-        <span class="ar-lang" data-lang-control>
-          <button type="button" class="ar-tool" data-lang-toggle aria-haspopup="menu" aria-expanded="false" aria-label="Switch language" data-i18n-aria="languageLabel" title="Switch language" data-i18n-title="languageLabel">
+        <span class="ar-lang" data-menu-control>
+          <button type="button" class="ar-tool" data-menu-toggle data-lang-toggle aria-haspopup="menu" aria-expanded="false" aria-label="Switch language" data-i18n-aria="languageLabel" title="Switch language" data-i18n-title="languageLabel">
             <svg class="ar-tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>
               <path d="M3.6 12h16.8M12 3a13.4 13.4 0 0 1 0 18M12 3a13.4 13.4 0 0 0 0 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
             </svg>
             <span class="ar-hidden" data-i18n="languageLabel">Switch language</span>
           </button>
-          <span class="ar-lang-menu" data-lang-menu role="menu" aria-label="Choose language" hidden>
+          <span class="ar-lang-menu" data-menu data-lang-menu role="menu" aria-label="Choose language" hidden>
             <button type="button" role="menuitemradio" data-lang-option="en">English</button>
             <button type="button" role="menuitemradio" data-lang-option="zh-Hant">繁中</button>
             <button type="button" role="menuitemradio" data-lang-option="ja">日本語</button>
@@ -54,17 +54,24 @@
           <span aria-hidden="true">i</span><span class="ar-hidden" data-i18n="aboutLabel">About</span>
         </button>
         <!--
-          One way in, not two. The folder picker is a second OS dialog that no single input can
-          offer alongside this one, and it is wanted only by the rare model whose textures sit in
-          separate files - so it lives in the help sheet, next to the sentence that explains why it
-          exists, rather than as a second glyph nobody could tell apart from this one.
+          One button, and the choice behind it. A file input is fixed as a file picker or a folder
+          picker before it is clicked - no single OS dialog offers both - so the two live as two
+          items under one control rather than as two glyphs nobody could tell apart. The folder item
+          hides itself where the browser cannot hand a folder over (`data-folder-pick`), which on
+          Chrome for Android leaves a menu of one.
         -->
-        <label class="ar-tool" for="model-file-input" role="button" tabindex="0" title="Load a local model" data-i18n-title="loadLocalLabel">
-          <svg class="ar-tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M12 15.6V4.2m0 0L8.2 8M12 4.2 15.8 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M4.6 14.4v3.4a1.6 1.6 0 0 0 1.6 1.6h11.6a1.6 1.6 0 0 0 1.6-1.6v-3.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-          </svg><span class="ar-hidden" data-i18n="loadLocalLabel">Load a local model</span>
-        </label>
+        <span class="ar-open" data-menu-control>
+          <button type="button" class="ar-tool" data-menu-toggle aria-haspopup="menu" aria-expanded="false" title="Load a local model" data-i18n-title="loadLocalLabel">
+            <svg class="ar-tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 15.6V4.2m0 0L8.2 8M12 4.2 15.8 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4.6 14.4v3.4a1.6 1.6 0 0 0 1.6 1.6h11.6a1.6 1.6 0 0 0 1.6-1.6v-3.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg><span class="ar-hidden" data-i18n="loadLocalLabel">Load a local model</span>
+          </button>
+          <span class="ar-menu" data-menu role="menu" aria-label="Open a model" data-i18n-aria="loadLocalLabel" hidden>
+            <label role="menuitem" for="model-file-input" tabindex="0" data-i18n="openFiles">Choose files…</label>
+            <label role="menuitem" for="model-folder-input" tabindex="0" data-folder-pick hidden data-i18n="openFolder">Choose a folder…</label>
+          </span>
+        </span>
       </span>
     </nav>
     <input id="model-folder-input" class="ar-hidden" type="file" webkitdirectory multiple aria-label="Open a folder" data-i18n-aria="loadFolderLabel" hidden>
@@ -85,7 +92,7 @@
          it goes stale exactly when the chrome changes - which it just did, and a returning visitor
          was still shown the old glyph. The brand images and the fallback model carry no token
          because they do not describe the UI. -->
-    <img class="ar-diagram" src="./assets/ar/instructions.svg?v=2026111503" alt="Where the controls are on the screen" data-i18n-alt="diagramAlt">
+    <img class="ar-diagram" src="./assets/ar/instructions.svg?v=2026111504" alt="Where the controls are on the screen" data-i18n-alt="diagramAlt">
     <ol class="ar-steps">
       <li><span class="ar-step">1</span><span data-i18n="stepModels">If the URL or a local load includes more than one model, they are listed here.</span></li>
       <li><span class="ar-step">2</span><span><span data-i18n="stepArBefore">On a phone that supports it,</span> <span class="ar-chip"><svg class="ar-glyph ar-scan-glyph" viewBox="0 0 32 24" aria-hidden="true" focusable="false"><path class="ar-scan-corner" d="M2 7V2h5M25 2h5v5M30 17v5h-5M7 22H2v-5"/><path class="ar-scan-cube" d="M16 4 23 8 16 12 9 8zM9 9.5l7 4v7l-7-4zM23 9.5l-7 4v7l7-4z"/></svg><span aria-hidden="true">AR</span></span> <span data-i18n="stepArAfter">places the model in the room in front of you.</span></span></li>
@@ -93,10 +100,9 @@
     </ol>
     <!-- Not a numbered step: the numbers are places on the diagram, and this is an action. -->
     <p class="ar-load-note" data-i18n="stepLoad">Open a model from this device, or drag one onto the page. GLB, GLTF, OBJ, PLY, 3MF, STL, or a .zip holding a model with its files.</p>
-    <p class="ar-folder-note" data-folder-pick hidden>
-      <span data-i18n="folderNote">A model whose textures are separate files - an .obj with its .mtl - needs all of them, and a page cannot read a file you did not pick. Open its whole folder, or drag the folder onto the page:</span>
-      <label class="ar-link-button" for="model-folder-input" role="button" tabindex="0" data-i18n="loadFolderLabel">Open a folder</label>
-    </p>
+    <!-- The explanation stays here; the control itself is one of the two items under the Open
+         button, so there is one place to open a folder rather than two. -->
+    <p class="ar-folder-note" data-folder-pick hidden data-i18n="folderNote">A model whose textures are separate files - an .obj with its .mtl - needs all of them, and a page cannot read a file you did not pick. Choose its whole folder under the Open button, or drag the folder onto the page.</p>
     <p class="ar-caveat" data-i18n="caveat">AR does not start inside the browsers built into LINE, Facebook and other apps. Copy the link and open it in Chrome or Safari.</p>
     <form method="dialog"><button class="ar-close" data-i18n="close">Close</button></form>
   </dialog>
@@ -124,6 +130,6 @@ background: linear-gradient(307deg,rgba(96, 35, 166, 1) 0%, rgba(207, 0, 41, 1) 
     <form method="dialog"><button class="ar-close" data-i18n="close">Close</button></form>
   </dialog>
 
-  <script type="module" src="./assets/js/mixo-ar.js?v=2026111503"></script>
+  <script type="module" src="./assets/js/mixo-ar.js?v=2026111504"></script>
 </body>
 </html>

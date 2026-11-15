@@ -2,10 +2,10 @@
 // says so. The rendering itself is `core/viewer.js`, which is also what mixoweb vendors - so a
 // change to how a model is shown belongs there, and a change to what may be shown belongs here.
 
-import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111503';
-import { phaseProgress } from './core/convert/progress.js?v=2026111503';
-import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111503';
-import { listZipEntries } from './zip-entries.js?v=2026111503';
+import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111504';
+import { phaseProgress } from './core/convert/progress.js?v=2026111504';
+import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111504';
+import { listZipEntries } from './zip-entries.js?v=2026111504';
 
 const stage = typeof document === 'undefined' ? null : document.querySelector('[data-mixo-ar]');
 const LANGUAGE_STORAGE_KEY = 'mixo-ar-language';
@@ -18,6 +18,8 @@ const I18N = {
     aboutLabel: 'About',
     loadLocalLabel: 'Load a local model',
     loadFolderLabel: 'Open a folder',
+    openFiles: 'Choose files…',
+    openFolder: 'Choose a folder…',
     helpTitle: 'How to use this',
     diagramAlt: 'Where the controls are on the screen',
     stepModels: 'If the link lists more than one model, they are listed here. A file you open from this device shows one model at a time.',
@@ -25,7 +27,7 @@ const I18N = {
     stepArAfter: 'places the model in the room in front of you.',
     stepInfo: 'Load models, view descriptions, and see creator info.',
     stepLoad: 'Open a model from this device, or drag one onto the page. GLB, GLTF, OBJ, PLY, 3MF, STL, or a .zip holding a model with its files.',
-    folderNote: 'A model whose textures are separate files - an .obj with its .mtl - needs all of them, and a page cannot read a file you did not pick. Open its whole folder, or drag the folder onto the page:',
+    folderNote: 'A model whose textures are separate files - an .obj with its .mtl - needs all of them, and a page cannot read a file you did not pick. Choose its whole folder under the Open button, or drag the folder onto the page.',
     caveat: 'AR does not start inside the browsers built into LINE, Facebook and other apps. Copy the link and open it in Chrome or Safari.',
     aboutTitle: 'About',
     aboutBody: 'mixocreative 3D/AR viewer.',
@@ -60,6 +62,8 @@ const I18N = {
     aboutLabel: '關於',
     loadLocalLabel: '載入本機模型',
     loadFolderLabel: '開啟資料夾',
+    openFiles: '選擇檔案…',
+    openFolder: '選擇資料夾…',
     helpTitle: '使用說明',
     diagramAlt: '畫面控制位置',
     stepModels: '如果連結包含多個模型，會在這裡列出。從裝置開啟的檔案一次顯示一個模型。',
@@ -67,7 +71,7 @@ const I18N = {
     stepArAfter: '可以把模型放到你面前的空間中。',
     stepInfo: '這裡可以載入3D模型、查看說明與製作者資訊。',
     stepLoad: '從這台裝置開啟模型，或把檔案拖放到畫面上。支援 GLB、GLTF、OBJ、PLY、3MF、STL，或包含模型與相關檔案的 .zip。',
-    folderNote: '材質為獨立檔案的模型（.obj 搭配 .mtl）需要全部檔案，而網頁無法讀取你沒有選取的檔案。請改為開啟整個資料夾，或把資料夾拖放到畫面上：',
+    folderNote: '材質為獨立檔案的模型（.obj 搭配 .mtl）需要全部檔案，而網頁無法讀取你沒有選取的檔案。請在「開啟」按鈕中選擇整個資料夾，或把資料夾拖放到畫面上。',
     caveat: 'LINE、Facebook 等 App 內建瀏覽器無法啟動 AR。請複製連結，改用 Chrome 或 Safari 開啟。',
     aboutTitle: '關於',
     aboutBody: 'mixocreative  3D/AR 檢視器。',
@@ -102,6 +106,8 @@ const I18N = {
     aboutLabel: 'About',
     loadLocalLabel: 'ローカルモデルを読み込む',
     loadFolderLabel: 'フォルダを開く',
+    openFiles: 'ファイルを選ぶ…',
+    openFolder: 'フォルダを選ぶ…',
     helpTitle: '使い方',
     diagramAlt: '画面上の操作ボタンの位置',
     stepModels: 'リンクに複数のモデルが含まれる場合、ここに一覧表示されます。端末から開いたファイルは一度に 1 つのモデルを表示します。',
@@ -109,7 +115,7 @@ const I18N = {
     stepArAfter: 'モデルを目の前の空間に配置できます。',
     stepInfo: 'ここでは3Dモデルの読み込み、説明の閲覧、製作者情報の確認ができます。',
     stepLoad: 'この端末からモデルを開くか、ファイルを画面にドラッグしてください。GLB、GLTF、OBJ、PLY、3MF、STL、またはモデルと関連ファイルを含む .zip に対応します。',
-    folderNote: 'テクスチャが別ファイルのモデル（.obj と .mtl）はすべてのファイルが必要ですが、選択していないファイルをページは読み取れません。フォルダごと開くか、フォルダを画面にドラッグしてください：',
+    folderNote: 'テクスチャが別ファイルのモデル（.obj と .mtl）はすべてのファイルが必要ですが、選択していないファイルをページは読み取れません。「開く」ボタンからフォルダごと選ぶか、フォルダを画面にドラッグしてください。',
     caveat: 'LINE、Facebook などのアプリ内ブラウザでは AR が開始できません。リンクをコピーして Chrome または Safari で開いてください。',
     aboutTitle: 'About',
     aboutBody: 'mixocreative の 3D/AR ビューアーです。',
@@ -155,11 +161,12 @@ async function start(stage) {
 
   applyTranslations(strings);
   openSheets();
+  enableMenus();
   enableLanguageSwitching(stage, strings);
   enableLocalModelLoading(stage, state, strings, status);
   showArButtonPreview(stage, strings, window.location.search);
 
-  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111503');
+  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111504');
   const decoderBase = new URL('../vendor/model-viewer/decoders/', import.meta.url).href;
   ModelViewerElement.dracoDecoderLocation = decoderBase + 'draco/';
   ModelViewerElement.ktx2TranscoderLocation = decoderBase + 'ktx2/';
@@ -174,21 +181,64 @@ async function start(stage) {
   showModels(stage, state, strings, status, models, false, strings.loading);
 }
 
-function enableLanguageSwitching(stage, strings) {
-  const closeMenus = () => {
-    for (const control of document.querySelectorAll('[data-lang-control]')) {
-      const toggle = control.querySelector('[data-lang-toggle]');
-      const menu = control.querySelector('[data-lang-menu]');
+/**
+ * Every popup under a toolbar button - the languages, and the two ways to open a model.
+ *
+ * One implementation rather than one per menu: the second menu is where the first one's rules
+ * (close the others, close on Escape, close on a click anywhere) would otherwise be copied and
+ * then drift. A control is `[data-menu-control]` holding a `[data-menu-toggle]` and a `[data-menu]`.
+ */
+function closeAllMenus() {
+  for (const control of document.querySelectorAll('[data-menu-control]')) {
+    const toggle = control.querySelector('[data-menu-toggle]');
+    const menu = control.querySelector('[data-menu]');
 
-      if (toggle) {
-        toggle.setAttribute('aria-expanded', 'false');
-      }
-
-      if (menu) {
-        menu.hidden = true;
-      }
+    if (toggle) {
+      toggle.setAttribute('aria-expanded', 'false');
     }
-  };
+
+    if (menu) {
+      menu.hidden = true;
+    }
+  }
+}
+
+function enableMenus() {
+  for (const button of document.querySelectorAll('[data-menu-toggle]')) {
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+
+      const control = button.closest('[data-menu-control]');
+      const menu = control ? control.querySelector('[data-menu]') : null;
+
+      if (!menu) {
+        return;
+      }
+
+      const willOpen = menu.hidden;
+
+      closeAllMenus();
+      menu.hidden = !willOpen;
+      button.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    });
+  }
+
+  // Choosing an item closes the menu it came from. A `<label>` opens its picker by itself, so this
+  // only has to tidy up after it.
+  for (const item of document.querySelectorAll('[data-menu] [role="menuitem"]')) {
+    item.addEventListener('click', () => closeAllMenus());
+  }
+
+  document.addEventListener('click', closeAllMenus);
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeAllMenus();
+    }
+  });
+}
+
+function enableLanguageSwitching(stage, strings) {
+  const closeMenus = closeAllMenus;
 
   const setLanguage = (locale) => {
     const nextStrings = localizedStrings(stage, locale);
@@ -199,25 +249,6 @@ function enableLanguageSwitching(stage, strings) {
     updateArButtonPreview(strings);
   };
 
-  for (const button of document.querySelectorAll('[data-lang-toggle]')) {
-    button.addEventListener('click', (event) => {
-      event.stopPropagation();
-
-      const control = button.closest('[data-lang-control]');
-      const menu = control ? control.querySelector('[data-lang-menu]') : null;
-
-      if (!menu) {
-        return;
-      }
-
-      const willOpen = menu.hidden;
-
-      closeMenus();
-      menu.hidden = !willOpen;
-      button.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-    });
-  }
-
   for (const option of document.querySelectorAll('[data-lang-option]')) {
     option.addEventListener('click', (event) => {
       event.stopPropagation();
@@ -225,13 +256,6 @@ function enableLanguageSwitching(stage, strings) {
       closeMenus();
     });
   }
-
-  document.addEventListener('click', closeMenus);
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      closeMenus();
-    }
-  });
 }
 
 function showArButtonPreview(stage, strings, search) {

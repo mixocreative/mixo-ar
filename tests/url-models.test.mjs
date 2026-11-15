@@ -145,21 +145,28 @@ test('standalone page has a mobile file picker for local model loading', async (
 
 test('exactly one tool in the chrome opens a local model', async () => {
   // Two glyphs that both mean "open something" was one too many: the folder one went unrecognised
-  // until the owner asked what the square did. The folder picker is a second OS dialog no single
-  // input can offer alongside the file one, so it is still here - in the help sheet, beside the
-  // sentence that says why it exists, rather than as a second glyph in the toolbar.
+  // until the owner asked what the square did. A file input is fixed as a file picker or a folder
+  // picker before it is clicked, so the two cannot be one dialog - they are two items under one
+  // button instead, which is where somebody looks for them.
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
   assert.doesNotMatch(html, /class="ar-empty-panel"/);
   assert.doesNotMatch(html, /class="ar-file-input"/);
   assert.match(html, /<input id="model-file-input" class="ar-hidden" type="file"/);
-  assert.match(html, /<label class="ar-tool" for="model-file-input" role="button" tabindex="0"/);
+  assert.match(html, /<span class="ar-open" data-menu-control>/, 'one control in the toolbar, with the choice behind it');
   assert.match(html, /aria-label="Load a model"/);
   assert.doesNotMatch(html, /<p class="ar-status" role="status">Loading the model/);
 
-  assert.doesNotMatch(html, /<label class="ar-tool" for="model-folder-input"/, 'the folder picker is not a toolbar glyph');
-  assert.match(html, /class="ar-folder-note"[^>]*data-folder-pick/, 'and it is in the help sheet, still hidden where folders are unsupported');
-  assert.match(html, /<label class="ar-link-button" for="model-folder-input"/);
+  assert.doesNotMatch(html, /<label class="ar-tool" for="model-folder-input"/, 'the folder picker is not a second toolbar glyph');
+  assert.match(html, /class="ar-folder-note"[^>]*data-folder-pick/, 'the sheet still explains why a folder is ever needed');
+
+  // Both ways in are items of one menu under one button, and the folder one hides itself where the
+  // browser cannot hand a folder over at all.
+  const menu = /<span class="ar-menu"[\s\S]*?<\/span>\s*<\/span>/.exec(html);
+
+  assert.ok(menu, 'the Open button has a menu');
+  assert.match(menu[0], /<label role="menuitem" for="model-file-input"/);
+  assert.match(menu[0], /<label role="menuitem" for="model-folder-input"[^>]*data-folder-pick hidden/);
 });
 
 test('every control in the chrome names itself on hover', async () => {
@@ -184,7 +191,7 @@ test('standalone page includes language and about icon controls', async () => {
   assert.match(html, /data-lang-option="en"/);
   assert.match(html, /data-lang-option="zh-Hant"/);
   assert.match(html, /data-lang-option="ja"/);
-  assert.match(html, /<a class="ar-brand" href="\.\/">[\s\S]*<\/a>\s*<span class="ar-lang" data-lang-control>/);
+  assert.match(html, /<a class="ar-brand" href="\.\/">[\s\S]*<\/a>\s*<span class="ar-lang" data-menu-control>/);
   assert.match(html, /data-i18n-aria="languageLabel"/);
   assert.match(html, /href="https:\/\/mixocreative\.com\/"/);
   assert.match(html, /href="https:\/\/www\.instagram\.com\/mixo+creative\/"/);

@@ -179,12 +179,14 @@ model-viewer {
 
 .ar-tools { display: flex; gap: 8px; }
 
-.ar-lang {
+.ar-lang,
+.ar-open {
   position: relative;
   display: inline-flex;
 }
 
-.ar-lang-menu {
+.ar-lang-menu,
+.ar-menu {
   position: absolute;
   top: calc(100% + 8px);
   left: 50%;
@@ -202,9 +204,11 @@ model-viewer {
   transform: translateX(-50%);
 }
 
-.ar-lang-menu[hidden] { display: none; }
+.ar-lang-menu[hidden],
+.ar-menu[hidden] { display: none; }
 
-.ar-lang-menu button {
+.ar-lang-menu button,
+.ar-menu label {
   min-height: 34px;
   padding: 0 10px;
   border: none;
@@ -222,7 +226,24 @@ model-viewer {
   color: var(--ar-card);
 }
 
-.ar-lang-menu button:focus-visible { outline: 3px solid var(--ar-gold); outline-offset: 2px; }
+.ar-lang-menu button:focus-visible,
+.ar-menu label:focus-visible { outline: 3px solid var(--ar-gold); outline-offset: 2px; }
+
+/* The Open menu sits under a button near the right edge, where a centred menu would hang off the
+   screen. The language one is near the left, so it keeps the centred anchor it already had. */
+.ar-menu {
+  left: auto;
+  right: 0;
+  min-width: 150px;
+  transform: none;
+}
+
+.ar-menu label {
+  display: flex;
+  align-items: center;
+  min-height: var(--ar-touch);
+  cursor: pointer;
+}
 
 .ar-tool {
   display: inline-flex;
@@ -504,11 +525,13 @@ model-viewer {
   margin: 0 0 16px;
   padding: 10px 12px;
   border-left: 3px solid var(--ar-red);
-  /* The red belongs to the 3px rule on the left, not to the fill. `--ar-sheet-card-ink` is a dark
-     ink chosen for the glass card, and a second `background` underneath it put that ink on red -
-     the one unreadable paragraph on the page, and the one carrying the warning people most need. */
+  /* The red belongs to the 3px rule on the left, not to the fill.
+     **`--ar-sheet-card-ink` pairs with `--ar-sheet-card`, never with `--ar-glass-card`.** The card
+     ink flips to near-white in dark mode while the glass card stays near-white in both, so that
+     pairing is invisible in dark mode - which is how this paragraph disappeared. Anything sitting
+     on glass takes `--ar-sheet-ink`, dark in both schemes, exactly as `.ar-sheet` itself does. */
   background: var(--ar-glass-card);
-  color: var(--ar-sheet-card-ink);
+  color: var(--ar-sheet-ink);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.55),
     inset 0 0 12px rgba(255, 255, 255, 0.24);
@@ -532,19 +555,7 @@ model-viewer {
 
 .ar-folder-note[hidden] { display: none; }
 
-.ar-link-button {
-  display: inline-block;
-  margin-top: 8px;
-  padding: 7px 14px;
-  border: 1px solid var(--ar-line);
-  border-radius: 999px;
-  background: var(--ar-glass-card);
-  color: var(--ar-sheet-card-ink);
-  font-size: 0.85rem;
-  cursor: pointer;
-}
 
-.ar-link-button:focus-visible { outline: 3px solid var(--ar-gold); outline-offset: 2px; }
 
 .ar-links {
   display: flex;
