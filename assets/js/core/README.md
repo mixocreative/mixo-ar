@@ -58,3 +58,32 @@ cannot drive:
 
 CSS is **not** shared. `assets/css/mixo-ar.css` here and mixoweb's copy have diverged with their
 pages, and merging them is a separate decision from sharing the renderer.
+
+## What this core is *not* for: the planned puck page
+
+This core is **`model-viewer` end to end** — it creates that element, sets its attributes, listens to
+its events and writes its `src`. That is worth saying out loud, because the next page planned for
+this repository deliberately will **not** use it.
+
+`mixospatial`'s Bluetooth orientation puck gets a page here (`mixospatial/docs/decisions/0008`), and
+its own module, because of the renderer and nothing else:
+
+- `model-viewer` takes orientation as a **Euler string**. A quaternion converted to Euler every frame
+  flips near ±90° of pitch — an attitude a hand-held puck passes through constantly — so the page
+  would show a gimbal artefact the device does not have.
+- Its runtime camera API, `camera-orbit`, is spherical: **two rotational degrees of freedom and a
+  locked up-vector**. A quaternion has three, so rolling the puck about the viewing axis would do
+  nothing. Driving the camera from a full quaternion needs the camera's own quaternion.
+
+So that page drives this repository's **vendored three.js** directly. Reaching into `model-viewer`'s
+internal three.js scene is unsupported and breaks on upgrade; two sibling modules is the honest
+shape. What the two pages share is the *page*, not the renderer: the chrome, the i18n, the sheets and
+the `?src=` contract — "one viewer, two input modes chosen by the device: AR on mobile, the puck on
+desktop" (owner, 2026-11-15).
+
+**The puck code itself is not ours either.** `mixospatial/web/src/puck.ts` is radio-in,
+quaternion-out and framework-free; it ships as a built plain ES module precisely so this repository
+can vendor and hash-pin it the way it vendors three.js, with no build step. What a turn *means* — the
+zero, the placement — belongs to `mixo-geocore`, whose shared code is forbidden a renderer import by
+its rule D22 and held to it by a test. That is what lets one puck serve this page, mixoDental
+(three.js) and mixoMesh (Babylon) without any of them inheriting another's engine.
