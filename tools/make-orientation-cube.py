@@ -54,12 +54,14 @@ FACES = [
     # are not the same sentence; the protocol's is a construction aid for building the frame,
     # these are labels on an object.
     #
-    # The AXIS stays the larger line because it is what the protocol speaks, and because "front"
-    # stops meaning anything the moment the puck is picked up and turned over.
-    ("+X", (1, 0, 0), (0, 0, 1), ("+X", "USB / BACK")),
-    ("-X", (-1, 0, 0), (0, 0, 1), ("-X", "FRONT")),
-    ("+Y", (0, 1, 0), (0, 0, 1), ("+Y", "RIGHT")),
-    ("-Y", (0, -1, 0), (0, 0, 1), ("-Y", "LEFT")),
+    # THE WORD IS THE LARGER LINE, the axis the smaller one beside it. The axis is what the
+    # protocol speaks and it stays on every face, but somebody checking that the directions are
+    # right is reading "FRONT", not "-X" - and a cube you have to decode is a cube that gets
+    # decoded wrong. The word is only true at rest, which is the moment it is being checked.
+    ("+X", (1, 0, 0), (0, 0, 1), ("BACK / USB", "+X")),
+    ("-X", (-1, 0, 0), (0, 0, 1), ("FRONT", "-X")),
+    ("+Y", (0, 1, 0), (0, 0, 1), ("RIGHT", "+Y")),
+    ("-Y", (0, -1, 0), (0, 0, 1), ("LEFT", "-Y")),
     # The two faces where "up" is a choice rather than a fact, and the choice follows the resting
     # pose below: the connector points away from the viewer, so "away" on a horizontal face is
     # the puck's +X. The top's text therefore runs away from you and the base's toward you, and
@@ -69,8 +71,8 @@ FACES = [
     # really just a disagreement about which way "up" is on a horizontal surface. It changed once
     # already when the resting pose changed, because these two depend on it and the four sides
     # do not.
-    ("+Z", (0, 0, 1), (1, 0, 0), ("+Z", "TOP / LED")),
-    ("-Z", (0, 0, -1), (-1, 0, 0), ("-Z", "BASE")),
+    ("+Z", (0, 0, 1), (1, 0, 0), ("TOP / LED", "+Z")),
+    ("-Z", (0, 0, -1), (-1, 0, 0), ("BOTTOM", "-Z")),
 ]
 
 PAPER = (244, 242, 237)   # --paper
@@ -95,7 +97,7 @@ def atlas():
     """One image, three cells across and two down, in the order FACES lists them."""
     image = Image.new("RGB", (CELL * 3, CELL * 2), PAPER)
     draw = ImageDraw.Draw(image)
-    big, small = font(190), font(70)
+    big, small = font(96), font(64)
 
     for index, (name, _, _, (line1, line2)) in enumerate(FACES):
         accent = name == "+Z"

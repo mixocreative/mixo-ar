@@ -20,7 +20,7 @@ import {
   orientationAttribute,
   readStatus,
   relativeTo,
-} from './puck-orientation.js?v=2026111602';
+} from './puck-orientation.js?v=2026111603';
 
 /** How long Align watches before it takes the reference, once the puck is holding still. */
 const ALIGN_SAMPLE_MS = 500;
@@ -52,7 +52,7 @@ export async function puckIsAvailable(bluetooth) {
  * `showDefaultView` puts the model back where the page opened it - `0009`'s reset, which is also
  * what Reset view does, with or without a puck.
  */
-export function enablePuckPanel({ control, strings, source, getViewer, showDefaultView }) {
+export function enablePuckPanel({ control, strings, source, getViewer, showDefaultView, showTestCube = () => {} }) {
   if (!control || !source) {
     return null;
   }
@@ -62,8 +62,7 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
   const line = control.querySelector('[data-puck-state]');
   const connectButton = control.querySelector('[data-puck-connect]');
   const alignButton = control.querySelector('[data-puck-align]');
-  const resetButton = control.querySelector('[data-puck-reset]');
-  const card = document.querySelector('[data-align-card]');
+    const card = document.querySelector('[data-align-card]');
   const cardAsk = card ? card.querySelector('[data-align-ask]') : null;
 
   const state = {
@@ -179,6 +178,9 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
       // model keeps turning on its own AND follows the hand, and neither reads as either.
       spin(false);
 
+      // Nothing loaded means nothing to orient, so offer the labelled cube.
+      showTestCube();
+
       // And put the model back to its default angle, because whatever it was showing was either
       // the turntable's idea or the last link's. Connecting is the moment a person expects a
       // known starting point, and the alternative - carrying a stale angle into a fresh link -
@@ -277,15 +279,24 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
   }
 
   if (alignButton) {
-    alignButton.addEventListener('click', beginAlign);
-  }
-
-  if (resetButton) {
-    resetButton.addEventListener('click', () => {
+    alignButton.addEventListener('click', () => {
       state.qZero = null;
       showDefaultView();
+      beginAlign();
     });
   }
+
+  /*
+   * There is no separate "reset view": lining up IS the reset.
+   *
+   * They were two menu items doing one thing in two ways - one cleared the reference and homed
+   * the view, the other took a new reference by averaging a held-still window. To a person
+   * holding the puck that is a single intent: "put the model back in front of me and match it to
+   * how I am holding this." Two entries for it only invited the question of which one to press.
+   *
+   * Clearing the reference first means the view homes immediately even if the align window is
+   * never completed, because the next reading is adopted as the new reference.
+   */
 
   if (card) {
     const now = card.querySelector('[data-align-now]');

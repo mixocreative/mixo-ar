@@ -2,13 +2,13 @@
 // says so. The rendering itself is `core/viewer.js`, which is also what mixoweb vendors - so a
 // change to how a model is shown belongs there, and a change to what may be shown belongs here.
 
-import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111602';
-import { phaseProgress } from './core/convert/progress.js?v=2026111602';
-import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111602';
-import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111602';
-import { createPuck } from './puck/puck.js?v=2026111602';
-import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111602';
-import { listZipEntries } from './zip-entries.js?v=2026111602';
+import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111603';
+import { phaseProgress } from './core/convert/progress.js?v=2026111603';
+import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111603';
+import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111603';
+import { createPuck } from './puck/puck.js?v=2026111603';
+import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111603';
+import { listZipEntries } from './zip-entries.js?v=2026111603';
 
 const stage = typeof document === 'undefined' ? null : document.querySelector('[data-mixo-ar]');
 const LANGUAGE_STORAGE_KEY = 'mixo-ar-language';
@@ -213,18 +213,40 @@ async function start(stage) {
   enableLanguageSwitching(stage, strings);
   enableLocalModelLoading(stage, state, strings, status);
   showArButtonPreview(stage, strings, window.location.search);
-  enablePuck(stage, state, strings);
+  enablePuck(stage, state, strings, status);
 
-  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111602');
+  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111603');
   const decoderBase = new URL('../vendor/model-viewer/decoders/', import.meta.url).href;
   ModelViewerElement.dracoDecoderLocation = decoderBase + 'draco/';
   ModelViewerElement.ktx2TranscoderLocation = decoderBase + 'ktx2/';
 
   if (models.length === 0) {
-    say(status, strings.noProduct);
-    status.hidden = true;
+    /*
+     * TEMPORARY, while the puck is being brought up: a page opened with no model shows the
+     * orientation cube instead of an empty stage, so directions can be checked at a glance.
+     *
+     * Its six faces read FRONT, BACK, LEFT, RIGHT, TOP and BOTTOM with the puck's axis beside
+     * each - the words are the object's own, and they are true at rest, which is the moment
+     * anybody is checking them. `tools/make-orientation-cube.py` builds it.
+     *
+     * To take this out, restore the two lines below it: this is a development default, not a
+     * product decision, and a viewer that silently shows somebody else's cube when their own
+     * model fails to parse would be worse than an empty stage.
+     */
+    showModels(
+      stage,
+      state,
+      strings,
+      status,
+      [{ url: './assets/ar/orientation-cube.glb?v=2026111603', name: 'orientation cube' }],
+      false,
+      strings.loading,
+    );
 
     return;
+
+    // say(status, strings.noProduct);
+    // status.hidden = true;
   }
 
   showModels(stage, state, strings, status, models, false, strings.loading);
@@ -242,7 +264,7 @@ async function start(stage) {
  * and nothing else, because nothing below this line knows a radio exists - the panel only ever
  * calls `on`, `connect` and `disconnect`, which the fake satisfies too.
  */
-async function enablePuck(stage, state, strings) {
+async function enablePuck(stage, state, strings, status) {
   const control = document.querySelector('[data-puck-control]');
 
   if (!control) {
@@ -274,18 +296,65 @@ async function enablePuck(stage, state, strings) {
     return;
   }
 
+  /*
+   * The orientation cube, for checking that directions are right.
+   *
+   * `tools/make-orientation-cube.py` labels six faces with the puck's own axes and exists exactly
+   * so a wrong axis is visible rather than argued about - and nothing in this page ever loaded it.
+   * It is shown only when the page has no model of its own, so somebody testing a puck gets
+   * something they can read, and somebody viewing their own model never has it appear underneath.
+   *
+   * It goes through `showModels`, not `viewer.src`: with no `?model=` there is no <model-viewer>
+   * in the page at all, so assigning src had nothing to assign to. That cost a round of "the cube
+   * did not appear" with no error anywhere, because setting a property on null is only an error
+   * when something reads it back.
+   */
+  const showTestCube = () => {
+    if (state.viewer) {
+      return;
+    }
+
+    showModels(
+      stage,
+      state,
+      strings,
+      status,
+      [{ url: './assets/ar/orientation-cube.glb?v=2026111603', name: 'orientation cube' }],
+      false,
+      strings.loading,
+    );
+  };
+
   enablePuckPanel({
     control,
     strings,
     source,
+    showTestCube,
     getViewer: () => state.viewer,
     showDefaultView: () => {
-      if (state.viewer) {
-        // Written back, not removed: model-viewer parses this attribute on every update and throws
-        // `Cannot read properties of undefined (reading 'terms')` on an absent one. Removing it
-        // looked like the tidy way to say "no rotation" and breaks the element instead.
-        state.viewer.setAttribute('orientation', '0deg 0deg 0deg');
+      if (!state.viewer) {
+        return;
       }
+
+      // Written back, not removed: model-viewer parses this attribute on every update and throws
+      // `Cannot read properties of undefined (reading 'terms')` on an absent one. Removing it
+      // looked like the tidy way to say "no rotation" and breaks the element instead.
+      state.viewer.setAttribute('orientation', '0deg 0deg 0deg');
+
+      /*
+       * And bring the CAMERA home too, not just the model.
+       *
+       * Resetting the orientation alone leaves the camera wherever it was dragged to, so the
+       * model returns to its default angle while being looked at from the side - and then the
+       * puck's turns are read against a view that is itself turned. "Facing me" has to mean the
+       * camera as well, or the two frames disagree by however far the last drag went.
+       *
+       * Azimuth 0, polar 90: straight on, level with the model, which is the pose the orientation
+       * cube's faces are authored against.
+       */
+      state.viewer.cameraOrbit = '0deg 90deg auto';
+      state.viewer.jumpCameraToGoal?.();
+
     },
   });
 }

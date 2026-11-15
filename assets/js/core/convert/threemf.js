@@ -5,7 +5,7 @@
 // tree down to triangles. Units are converted to millimetres, which is what the viewer treats a
 // mesh file as.
 
-import { maybeYield, now } from './progress.js?v=2026111602';
+import { maybeYield, now } from './progress.js?v=2026111603';
 
 /** Millimetres per 3MF model unit. The viewer treats mesh files as millimetres, as STL is. */
 const THREE_MF_UNIT_MM = {
