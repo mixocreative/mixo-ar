@@ -113,6 +113,21 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
     }
   };
 
+  /** Idle show-off rotation: on when nothing is driving the model, off when something is. */
+  const spin = (on) => {
+    const viewer = getViewer();
+
+    if (!viewer) {
+      return;
+    }
+
+    if (on) {
+      viewer.setAttribute('auto-rotate', '');
+    } else {
+      viewer.removeAttribute('auto-rotate');
+    }
+  };
+
   const showCard = (visible) => {
     if (card) {
       card.hidden = !visible;
@@ -147,15 +162,23 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
       // Deliberate: the person said they were finished (0009).
       state.qZero = null;
       showDefaultView();
+      spin(true);
     }
 
     if (next === 'lost') {
       // Not deliberate: the view stays exactly where their hand left it, and the panel says why.
       state.aligning = false;
       showCard(false);
+      // Deliberately NOT restarting the spin: 0009 says a lost link freezes the view. A model
+      // that started turning by itself the moment the link dropped would read as "still working".
     }
 
     if (next === 'connected') {
+      // Stop the idle spin. The viewer carries `auto-rotate` so a page nobody is touching still
+      // shows the model off - but once a puck is driving the orientation, the two fight: the
+      // model keeps turning on its own AND follows the hand, and neither reads as either.
+      spin(false);
+
       // Until a reference is taken the model's angle means nothing, so the first connection walks
       // straight into Align rather than leaving it to be discovered (0010).
       beginAlign();
