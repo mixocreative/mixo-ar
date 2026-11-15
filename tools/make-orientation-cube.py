@@ -52,15 +52,17 @@ FACES = [
     ("-X", (-1, 0, 0), (0, 0, 1), ("-X", "")),
     ("+Y", (0, 1, 0), (0, 0, 1), ("+Y", "")),
     ("-Y", (0, -1, 0), (0, 0, 1), ("-Y", "")),
-    # The two faces where "up" is a choice rather than a fact, and the choice is made by where
-    # the viewer stands. The page opens looking along the puck's -Y, so these two read upright
-    # from there: the top's text runs away from you, the base's toward you, and tipping the cube
-    # either way brings a readable face into view.
+    # The two faces where "up" is a choice rather than a fact, and the choice follows the resting
+    # pose below: the connector points away from the viewer, so "away" on a horizontal face is
+    # the puck's +X. The top's text therefore runs away from you and the base's toward you, and
+    # tipping the cube either way brings a readable face into view.
     #
-    # Getting this wrong puts the top's label sideways, which looks like a texture bug and is
-    # really just a disagreement about which way "up" is on a horizontal surface.
-    ("+Z", (0, 0, 1), (0, 1, 0), ("+Z", "TOP / LED")),
-    ("-Z", (0, 0, -1), (0, -1, 0), ("-Z", "BASE")),
+    # Get this wrong and the top's label sits SIDEWAYS - which looks like a texture bug and is
+    # really just a disagreement about which way "up" is on a horizontal surface. It changed once
+    # already when the resting pose changed, because these two depend on it and the four sides
+    # do not.
+    ("+Z", (0, 0, 1), (1, 0, 0), ("+Z", "TOP / LED")),
+    ("-Z", (0, 0, -1), (-1, 0, 0), ("-Z", "BASE")),
 ]
 
 PAPER = (244, 242, 237)   # --paper
