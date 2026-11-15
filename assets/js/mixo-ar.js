@@ -2,10 +2,10 @@
 // says so. The rendering itself is `core/viewer.js`, which is also what mixoweb vendors - so a
 // change to how a model is shown belongs there, and a change to what may be shown belongs here.
 
-import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111502';
-import { phaseProgress } from './core/convert/progress.js?v=2026111502';
-import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111502';
-import { listZipEntries } from './zip-entries.js?v=2026111502';
+import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111503';
+import { phaseProgress } from './core/convert/progress.js?v=2026111503';
+import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111503';
+import { listZipEntries } from './zip-entries.js?v=2026111503';
 
 const stage = typeof document === 'undefined' ? null : document.querySelector('[data-mixo-ar]');
 const LANGUAGE_STORAGE_KEY = 'mixo-ar-language';
@@ -25,7 +25,7 @@ const I18N = {
     stepArAfter: 'places the model in the room in front of you.',
     stepInfo: 'Load models, view descriptions, and see creator info.',
     stepLoad: 'Open a model from this device, or drag one onto the page. GLB, GLTF, OBJ, PLY, 3MF, STL, or a .zip holding a model with its files.',
-    folderNote: 'A model whose textures are separate files - an .obj with its .mtl - needs all of them, and a page cannot read a file you did not pick. Open its whole folder instead:',
+    folderNote: 'A model whose textures are separate files - an .obj with its .mtl - needs all of them, and a page cannot read a file you did not pick. Open its whole folder, or drag the folder onto the page:',
     caveat: 'AR does not start inside the browsers built into LINE, Facebook and other apps. Copy the link and open it in Chrome or Safari.',
     aboutTitle: 'About',
     aboutBody: 'mixocreative 3D/AR viewer.',
@@ -67,7 +67,7 @@ const I18N = {
     stepArAfter: '可以把模型放到你面前的空間中。',
     stepInfo: '這裡可以載入3D模型、查看說明與製作者資訊。',
     stepLoad: '從這台裝置開啟模型，或把檔案拖放到畫面上。支援 GLB、GLTF、OBJ、PLY、3MF、STL，或包含模型與相關檔案的 .zip。',
-    folderNote: '材質為獨立檔案的模型（.obj 搭配 .mtl）需要全部檔案，而網頁無法讀取你沒有選取的檔案。請改為開啟整個資料夾：',
+    folderNote: '材質為獨立檔案的模型（.obj 搭配 .mtl）需要全部檔案，而網頁無法讀取你沒有選取的檔案。請改為開啟整個資料夾，或把資料夾拖放到畫面上：',
     caveat: 'LINE、Facebook 等 App 內建瀏覽器無法啟動 AR。請複製連結，改用 Chrome 或 Safari 開啟。',
     aboutTitle: '關於',
     aboutBody: 'mixocreative  3D/AR 檢視器。',
@@ -109,7 +109,7 @@ const I18N = {
     stepArAfter: 'モデルを目の前の空間に配置できます。',
     stepInfo: 'ここでは3Dモデルの読み込み、説明の閲覧、製作者情報の確認ができます。',
     stepLoad: 'この端末からモデルを開くか、ファイルを画面にドラッグしてください。GLB、GLTF、OBJ、PLY、3MF、STL、またはモデルと関連ファイルを含む .zip に対応します。',
-    folderNote: 'テクスチャが別ファイルのモデル（.obj と .mtl）はすべてのファイルが必要ですが、選択していないファイルをページは読み取れません。フォルダごと開いてください：',
+    folderNote: 'テクスチャが別ファイルのモデル（.obj と .mtl）はすべてのファイルが必要ですが、選択していないファイルをページは読み取れません。フォルダごと開くか、フォルダを画面にドラッグしてください：',
     caveat: 'LINE、Facebook などのアプリ内ブラウザでは AR が開始できません。リンクをコピーして Chrome または Safari で開いてください。',
     aboutTitle: 'About',
     aboutBody: 'mixocreative の 3D/AR ビューアーです。',
@@ -159,7 +159,7 @@ async function start(stage) {
   enableLocalModelLoading(stage, state, strings, status);
   showArButtonPreview(stage, strings, window.location.search);
 
-  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111502');
+  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111503');
   const decoderBase = new URL('../vendor/model-viewer/decoders/', import.meta.url).href;
   ModelViewerElement.dracoDecoderLocation = decoderBase + 'draco/';
   ModelViewerElement.ktx2TranscoderLocation = decoderBase + 'ktx2/';
@@ -714,8 +714,94 @@ function enableLocalModelLoading(stage, state, strings, status) {
   stage.addEventListener('drop', (event) => {
     event.preventDefault();
     stage.classList.remove('ar-drop-active');
-    load(event.dataTransfer ? event.dataTransfer.files : []);
+    filesFromDataTransfer(event.dataTransfer).then(load);
   });
+}
+
+/** How deep a dropped folder is followed. shortcut: 8 levels, raise it if a real model nests deeper. */
+const MAX_DROP_DEPTH = 8;
+
+/**
+ * Every file in a drop, including the ones inside a dropped folder.
+ *
+ * `dataTransfer.files` cannot see into a folder: dropping one yields a single entry that is not a
+ * readable file, so the page did nothing and said nothing - and dragging the folder is the first
+ * thing somebody tries when an OBJ needs its `.mtl` and its texture. The entries API is what reads
+ * it, and it is the same set of files the folder *picker* would have handed over, so everything
+ * downstream (`groupDroppedFiles` and below) is unchanged: it matches on names, never on paths.
+ *
+ * **The entries are taken before the first `await` on purpose.** A `DataTransfer` is emptied once
+ * the drop handler returns, so reaching for `items` after an await finds an empty list - a bug that
+ * would appear only on a slower machine, and only sometimes.
+ */
+export async function filesFromDataTransfer(dataTransfer, options = {}) {
+  if (!dataTransfer) {
+    return [];
+  }
+
+  const plain = Array.from(dataTransfer.files || []);
+  const entries = Array.from(dataTransfer.items || [])
+    .filter((item) => item.kind === 'file')
+    .map((item) => (typeof item.webkitGetAsEntry === 'function' ? item.webkitGetAsEntry() : null))
+    .filter((entry) => entry !== null);
+
+  if (entries.length === 0) {
+    // A browser without the entries API, or a drop that is not files at all.
+    return plain;
+  }
+
+  const files = [];
+
+  try {
+    for (const entry of entries) {
+      await collectDroppedEntry(entry, files, 0, options);
+    }
+  } catch (failure) {
+    // Reading the tree failed part way. What was already collected is still better than nothing,
+    // and the plain list is the honest answer when it collected nothing at all.
+    console.warn('A dropped folder could not be read in full', failure);
+  }
+
+  return files.length > 0 ? files : plain;
+}
+
+async function collectDroppedEntry(entry, out, depth, options) {
+  const maxDepth = options.maxDepth === undefined ? MAX_DROP_DEPTH : options.maxDepth;
+
+  if (!entry || depth > maxDepth) {
+    return;
+  }
+
+  if (entry.isFile) {
+    try {
+      out.push(await new Promise((resolve, reject) => entry.file(resolve, reject)));
+    } catch (failure) {
+      // One unreadable file does not fail the drop: the model beside it may be perfectly fine.
+      console.warn('A dropped file could not be read', entry.name, failure);
+    }
+
+    return;
+  }
+
+  if (!entry.isDirectory) {
+    return;
+  }
+
+  const reader = entry.createReader();
+
+  // `readEntries` hands back a batch at a time - 100 in Chromium - and an empty batch means the end.
+  // Calling it once reads a folder of 150 files as a folder of 100.
+  for (;;) {
+    const batch = await new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+
+    if (!batch || batch.length === 0) {
+      return;
+    }
+
+    for (const child of batch) {
+      await collectDroppedEntry(child, out, depth + 1, options);
+    }
+  }
 }
 
 /**

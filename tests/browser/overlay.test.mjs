@@ -437,3 +437,48 @@ test('a zip is offered by the file picker on every platform', async () => {
   assert.ok(accept === '' || accept.includes('.zip'), `zip should be selectable, accept was: ${accept}`);
   await page.close();
 });
+
+test('dropping a file still loads it, now that drops read folders too', async () => {
+  // The drop path had no browser test at all until the handler was changed to walk dropped
+  // folders through the entries API. A synthetic DataTransfer has no filesystem entries -
+  // `webkitGetAsEntry()` returns null on one - so this exercises exactly the fallback that keeps
+  // an ordinary file drop working. The folder half cannot be driven synthetically: only a real
+  // drag from a real file manager carries entries, so it is covered by unit tests over the walk.
+  // Opened with a model, because `openViewer` waits for one: a bare page builds no viewer at all.
+  const { page, errors } = await openViewer(`${origin}/index.html?model=./assets/ar/fallback.glb`);
+  const stl = await readFile(join(root, 'tests', 'fixtures', 'triangle.stl'));
+
+  await page.evaluate(async (bytes) => {
+    const file = new File([new Uint8Array(bytes)], 'triangle.stl', { type: 'model/stl' });
+    const transfer = new DataTransfer();
+
+    transfer.items.add(file);
+    document.querySelector('[data-mixo-ar]').dispatchEvent(
+      new DragEvent('drop', { dataTransfer: transfer, bubbles: true, cancelable: true }),
+    );
+  }, [...stl]);
+
+  // The dropped STL is converted to a GLB blob, so the new src is what proves the drop arrived -
+  // `loaded` is already true from the model the page opened with.
+  await page.waitForFunction(
+    () => document.querySelector('model-viewer')?.src?.startsWith('blob:') === true,
+    null,
+    { timeout: 40000 },
+  );
+  // `loaded` is the previous model's answer until the converted one replaces it, so waiting on the
+  // status going away is what actually says the drop finished - and it is the end state the test is
+  // about. Asserting it the instant `loaded` flips caught the model mid-load two runs in three.
+  await page.waitForFunction(
+    () => {
+      const status = document.querySelector('.ar-status');
+
+      return document.querySelector('model-viewer')?.loaded === true && Boolean(status) && status.hidden;
+    },
+    null,
+    { timeout: 40000 },
+  );
+
+  assert.deepEqual(errors, []);
+  assert.equal(await overlayVisible(page), false);
+  await page.close();
+});
