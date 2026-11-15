@@ -48,10 +48,14 @@ FACES = [
     # top up, every side reads the right way round as you turn the cube. Getting this wrong is
     # invisible in a still render and obvious the moment anybody turns it: one face upside down,
     # another lying on its side.
-    ("+X", (1, 0, 0), (0, 0, 1), ("+X", "USB")),
-    ("-X", (-1, 0, 0), (0, 0, 1), ("-X", "")),
-    ("+Y", (0, 1, 0), (0, 0, 1), ("+Y", "")),
-    ("-Y", (0, -1, 0), (0, 0, 1), ("-Y", "")),
+    # The words beside each axis are the resting pose's, from PROTOCOL.md section 2: stand where
+    # the connector points away from you, top face up, and +Y is on your left. They are a
+    # convenience for a person holding the thing - the AXIS is what the protocol speaks, and
+    # "front" stops meaning anything the moment the puck is picked up and turned over.
+    ("+X", (1, 0, 0), (0, 0, 1), ("+X", "USB / BACK")),
+    ("-X", (-1, 0, 0), (0, 0, 1), ("-X", "FRONT")),
+    ("+Y", (0, 1, 0), (0, 0, 1), ("+Y", "LEFT")),
+    ("-Y", (0, -1, 0), (0, 0, 1), ("-Y", "RIGHT")),
     # The two faces where "up" is a choice rather than a fact, and the choice follows the resting
     # pose below: the connector points away from the viewer, so "away" on a horizontal face is
     # the puck's +X. The top's text therefore runs away from you and the base's toward you, and
