@@ -2,13 +2,13 @@
 // says so. The rendering itself is `core/viewer.js`, which is also what mixoweb vendors - so a
 // change to how a model is shown belongs there, and a change to what may be shown belongs here.
 
-import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111608';
-import { phaseProgress } from './core/convert/progress.js?v=2026111608';
-import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111608';
-import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111608';
-import { createPuck } from './puck/puck.js?v=2026111608';
-import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111608';
-import { listZipEntries } from './zip-entries.js?v=2026111608';
+import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111609';
+import { phaseProgress } from './core/convert/progress.js?v=2026111609';
+import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111609';
+import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111609';
+import { createPuck } from './puck/puck.js?v=2026111609';
+import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111609';
+import { listZipEntries } from './zip-entries.js?v=2026111609';
 
 const stage = typeof document === 'undefined' ? null : document.querySelector('[data-mixo-ar]');
 const LANGUAGE_STORAGE_KEY = 'mixo-ar-language';
@@ -221,7 +221,7 @@ async function start(stage) {
   showArButtonPreview(stage, strings, window.location.search);
   enablePuck(stage, state, strings, status);
 
-  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111608');
+  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111609');
   const decoderBase = new URL('../vendor/model-viewer/decoders/', import.meta.url).href;
   ModelViewerElement.dracoDecoderLocation = decoderBase + 'draco/';
   ModelViewerElement.ktx2TranscoderLocation = decoderBase + 'ktx2/';
@@ -244,7 +244,7 @@ async function start(stage) {
       state,
       strings,
       status,
-      [{ url: './assets/ar/orientation-cube.glb?v=2026111608', name: 'orientation cube' }],
+      [{ url: './assets/ar/orientation-cube.glb?v=2026111609', name: 'orientation cube' }],
       false,
       strings.loading,
     );
@@ -325,7 +325,7 @@ async function enablePuck(stage, state, strings, status) {
       state,
       strings,
       status,
-      [{ url: './assets/ar/orientation-cube.glb?v=2026111608', name: 'orientation cube' }],
+      [{ url: './assets/ar/orientation-cube.glb?v=2026111609', name: 'orientation cube' }],
       false,
       strings.loading,
     );
@@ -358,13 +358,29 @@ async function enablePuck(stage, state, strings, status) {
        * Azimuth 0, polar 90: straight on, level with the model, which is the pose the orientation
        * cube's faces are authored against.
        */
-      // Belt and braces: a viewer mounted moments ago still carries `auto-rotate` from its
-      // attribute defaults, and a turntable that resumes after the camera is placed undoes the
-      // placement a frame later. Removing it here means homing the view cannot be quietly
-      // reversed by the element's own animation.
-      state.viewer.removeAttribute('auto-rotate');
-      state.viewer.cameraOrbit = '0deg 90deg auto';
-      state.viewer.jumpCameraToGoal?.();
+      /*
+       * HOMING HAS TO SURVIVE THE MODEL LOADING, which is why this runs twice.
+       *
+       * `showTestCube()` sets `src` and returns; the model arrives later, and when it does
+       * model-viewer FRAMES it - computing its own camera from the model's bounds and discarding
+       * the orbit set before it. So homing on connect worked on a viewer that already had a
+       * model and silently did nothing on one that did not, which is exactly the case a person
+       * testing a puck is in. It looked like the home was wrong; the home had been overwritten.
+       *
+       * Applied now for the already-loaded case, and again on the next `load` for the other one.
+       * `{ once: true }` so a later model the person opens themselves is framed normally.
+       */
+      const home = () => {
+        // A viewer mounted moments ago still carries `auto-rotate` from its attribute defaults,
+        // and a turntable that resumes after the camera is placed undoes the placement a frame
+        // later, leaving no trace of why.
+        state.viewer.removeAttribute('auto-rotate');
+        state.viewer.cameraOrbit = '0deg 90deg auto';
+        state.viewer.jumpCameraToGoal?.();
+      };
+
+      home();
+      state.viewer.addEventListener('load', home, { once: true });
 
     },
   });
