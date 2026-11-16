@@ -64,12 +64,17 @@ export function relativeTo(qZero, q) {
  *     puck +Z (top)       -> scene +Y (up)
  *
  * It is the geometry's map turned 180 degrees about the vertical, and that half-turn is the whole
- * correction. **The puck's +X points AT the person, not away** - the opposite of what PROTOCOL.md
- * section 2's resting pose assumes - and a 180-degree disagreement about which way the thing is
- * held reverses exactly two of the three rotations while leaving the third alone. Yaw is about the
- * vertical, which the half-turn preserves, so yaw read correctly and roll and pitch came out
- * mirrored. That symptom is a HEADING error every time; it is never a sign error in one component,
- * and chasing it as one is how the same bug was "fixed" three times in the demo harness.
+ * correction. What it means: **the quaternion's +X and the cube's baked front face disagree by 180
+ * degrees.** The owner confirmed the connector points AWAY in use, so this is not how the puck is
+ * held - the reported +X and the direction PROTOCOL.md section 2 gives it are opposite, and the
+ * generator was built on section 2. Which of the two to correct is a protocol question; this file
+ * corrects the display because that is what was measured.
+ *
+ * The rule that found it, which is worth more than the fix: **two rotations reversed and one
+ * correct is a HEADING error, and the correct one names the axis.** Yaw is about the vertical, the
+ * vertical survived, so the basis was 180 degrees out about the vertical. It is never a sign error
+ * in one component, and chasing it as one is how the same bug got "fixed" three times in the demo
+ * harness without moving.
  *
  * Two mirrored and one correct names the axis for you: the surviving rotation is the one you turned
  * about. Read it off and turn the basis, do not negate anything.

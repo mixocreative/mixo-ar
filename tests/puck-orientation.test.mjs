@@ -82,8 +82,8 @@ test('a puck turn appears about the matching SCENE axis, not the puck one', () =
   //
   // The rows below were MEASURED with a puck in a hand on 2026-11-16, not copied from the
   // generator. They are the generator's map turned 180 degrees about the vertical, because the
-  // puck's +X points AT the person rather than away: see `toSceneFrame`. Keep them measured. If the
-  // cube is regenerated these fail and name which row moved.
+  // reported +X and the cube's baked front face disagree by exactly that: see `toSceneFrame`. Keep
+  // them measured. If the cube is regenerated these fail and name which row moved.
   const cases = [
     ['puck +Z, the top face', [0, 0, 1], [0, 1, 0], 'scene +Y, up'],
     ['puck +X, the USB end', [1, 0, 0], [0, 0, 1], 'scene +Z, toward the viewer'],
