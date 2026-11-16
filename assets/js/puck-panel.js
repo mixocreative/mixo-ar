@@ -20,7 +20,7 @@ import {
   orientationAttribute,
   readStatus,
   relativeTo,
-} from './puck-orientation.js?v=2026111617';
+} from './puck-orientation.js?v=2026111618';
 
 /** Readings are ~50-100 Hz, so half a second is tens of them; this is the floor, not the target. */
 const ALIGN_MIN_READINGS = 5;
@@ -516,6 +516,10 @@ export function fakePuck({ interval = 50 } = {}) {
       setTimeout(() => {
         emit('state', 'connected');
         emit('battery', 76);
+        /* A fitted cell on USB, so `?puck=fake` shows the charging bolt and the percentage
+         * without a cell wired - the one part of this display a person most wants to look at
+         * before the hardware exists. */
+        emit('batteryStatus', { present: true, charging: true, wiredPower: true });
 
         timer = setInterval(() => {
           t += interval / 1000;
