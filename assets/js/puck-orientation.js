@@ -50,55 +50,37 @@ export function relativeTo(qZero, q) {
 /**
  * The puck's rotation, expressed in the SCENE's axes instead of the puck's.
  *
- * `tools/make-orientation-cube.py` bakes a basis change into the cube's VERTICES so the model sits
- * the right way up at rest: `(x, y, z) -> (-y, z, -x)`, sending puck +X (the connector) to scene
- * -Z, puck +Z (the top) to scene +Y and puck +Y to scene -X. Call that map `B`.
+ * `tools/make-orientation-cube.py` bakes this same basis change into the cube's VERTICES so the
+ * model sits the right way up at rest: `(x, y, z) -> (-y, z, -x)`, sending puck +X (the connector)
+ * to scene -Z, puck +Z (the top) to scene +Y and puck +Y to scene -X. Call it `B`.
  *
  * **THE ROTATION HAS TO MAKE THE SAME CROSSING, AND IT USED TO NOT.** Baking `B` into the geometry
  * and then handing the viewer the raw quaternion renders `R·B·p` when the correct result is
  * `B·R·p`. The model sits correctly at rest and turns about the wrong axis. A basis change is ONE
  * change and must reach the geometry and the rotation together.
  *
- * **AND THEN THE ROTATION NEEDS `B` TURNED 180 DEGREES ABOUT THE VERTICAL ON TOP OF THAT, which
- * the geometry does NOT need.** That is what the map below is, and it is measured, not derived:
- *
- *     puck +X (connector) -> scene +Z (toward the viewer)
- *     puck +Y             -> scene +X (screen right)
- *     puck +Z (top)       -> scene +Y (up)
- *
- * The geometry keeps plain `B` - the cube sits correctly at rest and was screenshotted doing it -
- * while the rotation takes `B` turned about the vertical. The two differing is the whole finding.
- *
- * HOW IT WAS ESTABLISHED, because it was got wrong in both directions first. The owner reported
- * roll and pitch reversed with yaw correct, twice, on two different days' builds, and then
- * answered the one unambiguous question with a device in hand: tip the connector end down, and
- * plain `B` renders the cube's TOP when the physical move exposes its BOTTOM. The half-turn makes
- * that row right and leaves yaw untouched.
- *
- * **Two reversed and one correct is a HEADING error and the surviving axis names it** - yaw is
- * about the vertical, so the vertical is the axis. That rule is sound and is the useful part. What
- * it does NOT tell you is which END is turned, the data or the person, and those need opposite
- * fixes. The hold was confirmed connector-away, which rules the person out and leaves the data.
+ * The conversion: for a basis change `B`, a quaternion's vector part becomes `det(B)·B·v` with `w`
+ * unchanged. `B` is a proper rotation, `det(B) = +1`, so it is just `B` applied to `(x, y, z)`. If
+ * the cube is ever regenerated with a different map, THIS FUNCTION CHANGES WITH IT.
  *
  * ---------------------------------------------------------------------------------------------
- * STILL UNRECONCILED, and the next person should start here rather than trusting this line.
+ * A 180-DEGREE HALF-TURN LIVED HERE ON 2026-11-16 AND HAS BEEN DELETED. Do not put it back.
  *
- * `mixospatial/hardware/electronics/pinout.md` has the accelerometer measured on the bench:
- * flat it reads +Z, connector tipped down it reads -X, so the ACCELEROMETER's axes are
- * PROTOCOL.md section 2's frame exactly. That reasoning is sound and this half-turn contradicts
- * it. The half-turn is here anyway, because it was measured against the device twice and the
- * bench note was measured once and constrains a different sensor.
+ * The puck's roll and pitch really were reversed on screen with yaw correct, and this file was
+ * turned about the vertical to compensate. The compensation worked, and it was in the wrong place:
+ * the IMU is mounted on the XIAO rotated 180 degrees about its Z axis, measured with the device,
+ * and `mixospatial/firmware/src/imu.c` now corrects it at the source. The wire speaks
+ * PROTOCOL.md section 2 again, so this file does not need to know the chip exists.
  *
- * The gap is that **the orientation comes from the GYRO and only the accelerometer was ever
- * measured.** They sit on one die and are supposed to share a frame; nobody has checked. `imu.c`
- * already logs which gyro component answers and with what sign, at debug level, for exactly this.
- * Turn the puck about one declared axis at a time, read that log, and either this half-turn gets
- * deleted and the firmware fixed at the source - which is where it belongs, because `web/demo`
- * consumes the same wire - or the bench note gets an explanation. Until then this is a patch at
- * the last possible moment, and it is only correct for THIS consumer.
+ * **If the rotations ever look mirrored again, the fingerprint is worth more than the fix.** Two
+ * rotations reversed with the third correct is a HEADING error, and the surviving axis names the
+ * one you are 180 degrees out about - it is never a sign error in one component. What it does not
+ * tell you is which END is turned, the device or the person, and those take opposite fixes. Ask
+ * how the puck is being HELD first, then measure the device, and only then touch a matrix. Doing
+ * it in the other order cost a day and produced three wrong answers on the way.
  */
 export function toSceneFrame(q) {
-  return { x: q.y, y: q.z, z: q.x, w: q.w };
+  return { x: -q.y, y: q.z, z: -q.x, w: q.w };
 }
 
 /**
