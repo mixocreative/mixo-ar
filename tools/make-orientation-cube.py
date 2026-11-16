@@ -58,7 +58,7 @@ FACES = [
     # protocol speaks and it stays on every face, but somebody checking that the directions are
     # right is reading "FRONT", not "-X" - and a cube you have to decode is a cube that gets
     # decoded wrong. The word is only true at rest, which is the moment it is being checked.
-    ("+X", (1, 0, 0), (0, 0, 1), ("BACK / USB", "+X")),
+    ("+X", (1, 0, 0), (0, 0, 1), ("BACK", "+X")),
     ("-X", (-1, 0, 0), (0, 0, 1), ("FRONT", "-X")),
     ("+Y", (0, 1, 0), (0, 0, 1), ("RIGHT", "+Y")),
     ("-Y", (0, -1, 0), (0, 0, 1), ("LEFT", "-Y")),
@@ -71,7 +71,7 @@ FACES = [
     # really just a disagreement about which way "up" is on a horizontal surface. It changed once
     # already when the resting pose changed, because these two depend on it and the four sides
     # do not.
-    ("+Z", (0, 0, 1), (1, 0, 0), ("TOP / LED", "+Z")),
+    ("+Z", (0, 0, 1), (1, 0, 0), ("TOP", "+Z")),
     ("-Z", (0, 0, -1), (-1, 0, 0), ("BOTTOM", "-Z")),
 ]
 
