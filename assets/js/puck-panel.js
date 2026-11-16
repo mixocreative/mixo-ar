@@ -20,7 +20,7 @@ import {
   orientationAttribute,
   readStatus,
   relativeTo,
-} from './puck-orientation.js?v=2026111615';
+} from './puck-orientation.js?v=2026111616';
 
 /** Readings are ~50-100 Hz, so half a second is tens of them; this is the floor, not the target. */
 const ALIGN_MIN_READINGS = 5;
@@ -271,6 +271,27 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
     }
   });
 
+  /*
+   * THE PUCK CONFIRMS ITS OWN ALIGNMENT: double-tap it (section 6, event 0x02).
+   *
+   * Reaching for the mouse is the one movement guaranteed to disturb the thing being lined up -
+   * the hand holding the puck is the hand that has to let go of it. Tapping the puck confirms
+   * without moving it, and the gesture happens where the person is already looking.
+   *
+   * The button stays as a fallback and is not decoration: a puck whose firmware predates the
+   * gesture emits nothing, and somebody who cannot tap reliably still has to be able to finish.
+   * Nothing here breaks if no event ever arrives.
+   */
+  source.on('event', (decoded) => {
+    if (!state.aligning || decoded.eventName !== 'doubleTap') {
+      return;
+    }
+
+    if (state.readings.length > 0) {
+      finishAlign(state.readings.slice(-ALIGN_MIN_READINGS));
+    }
+  });
+
   source.on('battery', (percent) => {
     state.battery = typeof percent === 'number' ? percent : null;
     render();
@@ -348,10 +369,36 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
     }
   });
 
+  /*
+   * Disconnecting ALSO puts the puck to sleep (PROTOCOL.md section 7, opcode 0x02).
+   *
+   * Otherwise "disconnect" only drops the radio link and leaves the puck awake, advertising and
+   * draining the cell, with nothing on screen to say so - the person has done the only thing the
+   * interface offers to finish with it and it is still running.
+   *
+   * The sleep is best-effort and the disconnect happens either way. A puck that refuses the
+   * command, or is already gone, must not leave the page stuck connected to nothing.
+   */
+  const sleepThenDisconnect = async () => {
+    try {
+      await source.sleepNow();
+    } catch {
+      // Section 6: the device answers a sleep by disconnecting itself, so the write can fail
+      // simply because it worked. Either way the next line is the same.
+    }
+
+    source.disconnect();
+  };
+
   if (connectButton) {
     connectButton.addEventListener('click', () => {
       if (state.link === 'connected') {
-        source.disconnect();
+        /*
+         * NOT awaited, and the handler is NOT async. An `await` before `source.connect()`
+         * would spend the user gesture that `requestDevice` needs - the bug that made Connect
+         * silently do nothing for weeks. The connect path below must stay synchronous.
+         */
+        void sleepThenDisconnect();
 
         return;
       }
