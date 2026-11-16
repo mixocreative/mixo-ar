@@ -2,13 +2,13 @@
 // says so. The rendering itself is `core/viewer.js`, which is also what mixoweb vendors - so a
 // change to how a model is shown belongs there, and a change to what may be shown belongs here.
 
-import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111604';
-import { phaseProgress } from './core/convert/progress.js?v=2026111604';
-import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111604';
-import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111604';
-import { createPuck } from './puck/puck.js?v=2026111604';
-import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111604';
-import { listZipEntries } from './zip-entries.js?v=2026111604';
+import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111605';
+import { phaseProgress } from './core/convert/progress.js?v=2026111605';
+import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111605';
+import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111605';
+import { createPuck } from './puck/puck.js?v=2026111605';
+import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111605';
+import { listZipEntries } from './zip-entries.js?v=2026111605';
 
 const stage = typeof document === 'undefined' ? null : document.querySelector('[data-mixo-ar]');
 const LANGUAGE_STORAGE_KEY = 'mixo-ar-language';
@@ -35,7 +35,9 @@ const I18N = {
     puckDisconnect: 'Disconnect',
     puckAlign: 'Line up',
     puckResetView: 'Reset view',
-    alignAsk: 'Put the puck on the desk, top face up, with the connector pointing away from you. Hold still.',
+    alignAsk: 'Hold the puck the way you want it to face you, then press Line up now.',
+    alignReady: 'Holding steady. Press Line up now when it is where you want it.',
+    cubeFront: 'FRONT',
     alignHoldStill: 'Keep it still - it moved while being read.',
     alignNow: 'Line up now',
     helpTitle: 'How to use this',
@@ -94,7 +96,9 @@ const I18N = {
     puckDisconnect: '中斷連線',
     puckAlign: '對正方向',
     puckResetView: '重設視角',
-    alignAsk: '把控制器平放在桌上，頂面朝上，接頭朝遠離你的方向，並保持不動。',
+    alignAsk: '把控制器擺成你想要面對你的方向，然後按「立即對正」。',
+    alignReady: '很穩定。擺到你要的位置後，按「立即對正」。',
+    cubeFront: '正面',
     alignHoldStill: '請保持不動，讀取時偵測到移動。',
     alignNow: '立即對正',
     helpTitle: '使用說明',
@@ -153,7 +157,9 @@ const I18N = {
     puckDisconnect: '切断',
     puckAlign: '向きを合わせる',
     puckResetView: '表示をリセット',
-    alignAsk: 'コントローラーを机の上に平らに置き、上面を上、コネクターを自分と反対側に向けて、動かさないでください。',
+    alignAsk: 'コントローラーを自分に向けたい向きで持ち、「位置を合わせる」を押してください。',
+    alignReady: '安定しています。希望の向きになったら「位置を合わせる」を押してください。',
+    cubeFront: '正面',
     alignHoldStill: '動いたため読み取れません。そのまま静止してください。',
     alignNow: 'いますぐ合わせる',
     helpTitle: '使い方',
@@ -215,7 +221,7 @@ async function start(stage) {
   showArButtonPreview(stage, strings, window.location.search);
   enablePuck(stage, state, strings, status);
 
-  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111604');
+  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111605');
   const decoderBase = new URL('../vendor/model-viewer/decoders/', import.meta.url).href;
   ModelViewerElement.dracoDecoderLocation = decoderBase + 'draco/';
   ModelViewerElement.ktx2TranscoderLocation = decoderBase + 'ktx2/';
@@ -238,7 +244,7 @@ async function start(stage) {
       state,
       strings,
       status,
-      [{ url: './assets/ar/orientation-cube.glb?v=2026111604', name: 'orientation cube' }],
+      [{ url: './assets/ar/orientation-cube.glb?v=2026111605', name: 'orientation cube' }],
       false,
       strings.loading,
     );
@@ -319,7 +325,7 @@ async function enablePuck(stage, state, strings, status) {
       state,
       strings,
       status,
-      [{ url: './assets/ar/orientation-cube.glb?v=2026111604', name: 'orientation cube' }],
+      [{ url: './assets/ar/orientation-cube.glb?v=2026111605', name: 'orientation cube' }],
       false,
       strings.loading,
     );

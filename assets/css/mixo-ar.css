@@ -664,6 +664,29 @@ model-viewer {
 
 .ar-align-card p { margin: 0 0 12px; }
 
+/*
+  The two buttons are not equals, so they are not drawn as equals.
+  "Line up now" is the one thing standing between the person and a working puck; Close walks away
+  from it. Stacked with a gap so neither is reached by accident, and the primary one inverted so
+  which to press is answered before the labels are read - two identical grey pills side by side
+  make that a question.
+*/
+.ar-align-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ar-close[data-align-now] {
+  border-color: var(--ar-sheet-ink);
+  background: var(--ar-sheet-ink);
+  color: var(--ar-card);
+}
+
+/* The focus ring is gold on both, and gold on near-black needs no help; on the inverted button it
+   sits outside the fill, so it stays visible either way. */
+.ar-close[data-align-now]:focus-visible { outline-offset: 3px; }
+
 .ar-menu-icon {
   flex: none;
   width: 18px;

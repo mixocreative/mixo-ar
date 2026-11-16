@@ -11,7 +11,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./assets/favicon/favicon-16x16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/favicon/apple-touch-icon.png">
   <link rel="manifest" href="./site.webmanifest">
-  <link rel="stylesheet" href="./assets/css/mixo-ar.css?v=2026111604">
+  <link rel="stylesheet" href="./assets/css/mixo-ar.css?v=2026111605">
   <script type="importmap">
     {
       "imports": {
@@ -132,12 +132,24 @@
   </main>
 
   <aside class="ar-align-card" data-align-card hidden>
+    <!--
+      The cube as the person should end up seeing it: its FRONT face square on to them. The old
+      drawing was the puck itself with an arrow, which showed what to hold rather than what to
+      look for - and the thing being matched is on the screen, not in the hand.
+      The word is translated with the rest of the interface; it is a label on the picture.
+    -->
     <svg class="ar-align-figure" viewBox="0 0 120 70" aria-hidden="true" focusable="false">
-      <path d="M8 56h104" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
-      <ellipse cx="60" cy="44" rx="26" ry="10" fill="none" stroke="currentColor" stroke-width="2.4"/>
-      <path d="M34 44v6c0 5.5 11.6 10 26 10s26-4.5 26-10v-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-      <circle cx="60" cy="40" r="3.2" fill="currentColor"/>
-      <path d="M60 28V12m0 0-5 5m5-5 5 5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- The floor, drawn first so the cube sits ON it rather than floating in front of it. The
+           line runs past the cube on both sides: a surface that stops at the object reads as a
+           shelf the object is balanced on. -->
+      <path d="M10 62h100" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.45"/>
+      <ellipse cx="60" cy="63.5" rx="30" ry="3" fill="currentColor" opacity="0.12"/>
+      <!-- The two faces turning away, faint, so the front reads as the front. -->
+      <path d="M34 24 46 15h48L82 24Z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" opacity="0.4"/>
+      <path d="M82 24 94 15v38L82 62Z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" opacity="0.4"/>
+      <!-- The face the person is being asked to end up looking at. -->
+      <rect x="34" y="24" width="48" height="38" rx="1.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+      <text x="58" y="45" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="700" fill="currentColor" data-i18n="cubeFront">FRONT</text>
     </svg>
     <p data-align-ask data-i18n="alignAsk">Put the puck on the desk, top face up, with the connector pointing away from you. Hold still.</p>
     <span class="ar-align-actions">
@@ -152,7 +164,7 @@
          it goes stale exactly when the chrome changes - which it just did, and a returning visitor
          was still shown the old glyph. The brand images and the fallback model carry no token
          because they do not describe the UI. -->
-    <img class="ar-diagram" src="./assets/ar/instructions.svg?v=2026111604" alt="Where the controls are on the screen" data-i18n-alt="diagramAlt">
+    <img class="ar-diagram" src="./assets/ar/instructions.svg?v=2026111605" alt="Where the controls are on the screen" data-i18n-alt="diagramAlt">
     <ol class="ar-steps">
       <li><span class="ar-step">1</span><span data-i18n="stepModels">If the URL or a local load includes more than one model, they are listed here.</span></li>
       <li><span class="ar-step">2</span><span><span data-i18n="stepArBefore">On a phone that supports it,</span> <span class="ar-chip"><svg class="ar-glyph ar-scan-glyph" viewBox="0 0 32 24" aria-hidden="true" focusable="false"><path class="ar-scan-corner" d="M2 7V2h5M25 2h5v5M30 17v5h-5M7 22H2v-5"/><path class="ar-scan-cube" d="M16 4 23 8 16 12 9 8zM9 9.5l7 4v7l-7-4zM23 9.5l-7 4v7l7-4z"/></svg><span aria-hidden="true">AR</span></span> <span data-i18n="stepArAfter">places the model in the room in front of you.</span></span></li>
@@ -190,6 +202,6 @@ background: linear-gradient(307deg,rgba(96, 35, 166, 1) 0%, rgba(207, 0, 41, 1) 
     <form method="dialog"><button class="ar-close" data-i18n="close">Close</button></form>
   </dialog>
 
-  <script type="module" src="./assets/js/mixo-ar.js?v=2026111604"></script>
+  <script type="module" src="./assets/js/mixo-ar.js?v=2026111605"></script>
 </body>
 </html>

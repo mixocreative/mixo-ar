@@ -20,10 +20,7 @@ import {
   orientationAttribute,
   readStatus,
   relativeTo,
-} from './puck-orientation.js?v=2026111604';
-
-/** How long Align watches before it takes the reference, once the puck is holding still. */
-const ALIGN_SAMPLE_MS = 500;
+} from './puck-orientation.js?v=2026111605';
 
 /** Readings are ~50-100 Hz, so half a second is tens of them; this is the floor, not the target. */
 const ALIGN_MIN_READINGS = 5;
@@ -134,6 +131,16 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
   };
 
   const beginAlign = () => {
+    /*
+     * HOME THE MODEL BEFORE ASKING, not after.
+     *
+     * The card asks the person to hold the puck the way they want it to face them, which is only
+     * answerable if they can already see which way that is. Opening the card over a model still
+     * sitting at the last link's angle asks them to match something to a target that is itself
+     * wrong, and whatever they then line up to is wrong by the same amount.
+     */
+    showDefaultView();
+
     state.aligning = true;
     state.readings = [];
     state.startedAt = 0;
@@ -246,8 +253,18 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
         return;
       }
 
-      if (now - state.startedAt >= ALIGN_SAMPLE_MS && state.readings.length >= ALIGN_MIN_READINGS) {
-        finishAlign(state.readings);
+      /*
+       * DELIBERATELY NO AUTOMATIC FINISH. Holding still long enough used to end the alignment by
+       * itself, which took the decision away at the exact moment it mattered: a person still
+       * settling the puck had the reference taken from under them, and the card vanished before
+       * they had agreed it was lined up. The button is now the only way out, so the puck takes
+       * over when the person says so and not before.
+       *
+       * The still-window still runs underneath, because the button averages whatever it has seen
+       * and a steady set of readings is a better reference than one sample.
+       */
+      if (cardAsk && state.readings.length >= ALIGN_MIN_READINGS) {
+        cardAsk.textContent = strings.alignReady || strings.alignAsk || '';
       }
 
       return;
