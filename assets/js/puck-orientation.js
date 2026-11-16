@@ -50,26 +50,36 @@ export function relativeTo(qZero, q) {
 /**
  * The puck's rotation, expressed in the SCENE's axes instead of the puck's.
  *
- * `tools/make-orientation-cube.py` bakes a basis change into the cube's vertices so that the model
- * sits the right way up at rest: `(x, y, z) -> (-y, z, -x)`, which sends puck +X (USB) to scene -Z,
- * puck +Z (top) to scene +Y and puck +Y to scene -X. Call that map `B`.
+ * `tools/make-orientation-cube.py` bakes a basis change into the cube's VERTICES so the model sits
+ * the right way up at rest. The rotation has to make the same crossing, and it used to not: handing
+ * the viewer the raw quaternion renders `R·B·p` when the right answer is `B·R·p`, so the cube sat
+ * correctly at rest and turned about the wrong axis. A basis change is ONE change and must reach
+ * the geometry and the rotation together.
  *
- * **THE ROTATION HAS TO MAKE THE SAME CROSSING, AND IT USED TO NOT.** Baking `B` into the geometry
- * and then handing the viewer the raw quaternion renders `R·B·p` when the correct result is
- * `B·R·p`. The model then sits correctly at rest and turns about the wrong axis - a puck turn about
- * its own +Z came out as a roll about the scene's Z, toward the viewer, instead of a turn about
- * the scene's vertical. That reads as a bug in the protocol and is not one.
+ * The map below is that basis change, MEASURED against a puck in a hand on 2026-11-16 rather than
+ * derived from the generator:
  *
- * The generator's comment used to say the offset "never interacts with the orientation being
- * displayed". It does. A basis change is ONE change and must reach the geometry and the rotation
- * together.
+ *     puck +X (connector) -> scene +Z (toward the viewer)
+ *     puck +Y             -> scene +X (screen right)
+ *     puck +Z (top)       -> scene +Y (up)
+ *
+ * It is the geometry's map turned 180 degrees about the vertical, and that half-turn is the whole
+ * correction. **The puck's +X points AT the person, not away** - the opposite of what PROTOCOL.md
+ * section 2's resting pose assumes - and a 180-degree disagreement about which way the thing is
+ * held reverses exactly two of the three rotations while leaving the third alone. Yaw is about the
+ * vertical, which the half-turn preserves, so yaw read correctly and roll and pitch came out
+ * mirrored. That symptom is a HEADING error every time; it is never a sign error in one component,
+ * and chasing it as one is how the same bug was "fixed" three times in the demo harness.
+ *
+ * Two mirrored and one correct names the axis for you: the surviving rotation is the one you turned
+ * about. Read it off and turn the basis, do not negate anything.
  *
  * The conversion itself: for a basis change `B`, a quaternion's vector part becomes `det(B)·B·v`
  * with `w` unchanged. `B` here is a proper rotation, `det(B) = +1`, so this is just `B` applied to
  * `(x, y, z)`. If the cube is ever regenerated with a different map, THIS FUNCTION CHANGES WITH IT.
  */
 export function toSceneFrame(q) {
-  return { x: -q.y, y: q.z, z: -q.x, w: q.w };
+  return { x: q.y, y: q.z, z: q.x, w: q.w };
 }
 
 /**

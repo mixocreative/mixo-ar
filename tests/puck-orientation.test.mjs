@@ -75,17 +75,19 @@ test('exactly at the pole, where yaw and roll are not separable', () => {
 test('a puck turn appears about the matching SCENE axis, not the puck one', () => {
   // THE BUG THIS FILE EXISTS TO PREVENT FROM COMING BACK.
   //
-  // `tools/make-orientation-cube.py` bakes `(x, y, z) -> (-y, z, -x)` into the cube's vertices, so
-  // the geometry already lives in the scene's axes. For a while the rotation did not make that
-  // crossing, and the model sat correctly at rest while turning about the wrong axis - which reads
-  // as a fault in the device and is not one.
+  // `tools/make-orientation-cube.py` bakes a basis change into the cube's vertices, so the geometry
+  // already lives in the scene's axes. For a while the rotation did not make that crossing, and the
+  // model sat correctly at rest while turning about the wrong axis - which reads as a fault in the
+  // device and is not one.
   //
-  // Each case below is one row of the generator's own comment, so if the cube is ever regenerated
-  // with a different map these fail and name which row moved.
+  // The rows below were MEASURED with a puck in a hand on 2026-11-16, not copied from the
+  // generator. They are the generator's map turned 180 degrees about the vertical, because the
+  // puck's +X points AT the person rather than away: see `toSceneFrame`. Keep them measured. If the
+  // cube is regenerated these fail and name which row moved.
   const cases = [
     ['puck +Z, the top face', [0, 0, 1], [0, 1, 0], 'scene +Y, up'],
-    ['puck +X, the USB end', [1, 0, 0], [0, 0, -1], 'scene -Z, away from the viewer'],
-    ['puck +Y', [0, 1, 0], [-1, 0, 0], 'scene -X, to the left'],
+    ['puck +X, the USB end', [1, 0, 0], [0, 0, 1], 'scene +Z, toward the viewer'],
+    ['puck +Y', [0, 1, 0], [1, 0, 0], 'scene +X, to the right'],
   ];
 
   for (const [what, puckAxis, sceneAxis, where] of cases) {
