@@ -51,60 +51,49 @@ export function relativeTo(qZero, q) {
  * The puck's rotation, expressed in the SCENE's axes instead of the puck's.
  *
  * `tools/make-orientation-cube.py` bakes a basis change into the cube's VERTICES so the model sits
- * the right way up at rest. The rotation has to make the same crossing, and it used to not: handing
- * the viewer the raw quaternion renders `R·B·p` when the right answer is `B·R·p`, so the cube sat
- * correctly at rest and turned about the wrong axis. A basis change is ONE change and must reach
- * the geometry and the rotation together.
+ * the right way up at rest: `(x, y, z) -> (-y, z, -x)`, which sends puck +X (the connector) to
+ * scene -Z, puck +Z (the top) to scene +Y and puck +Y to scene -X. Call that map `B`.
  *
- * The map below is that basis change, MEASURED against a puck in a hand on 2026-11-16 rather than
- * derived from the generator:
+ * **THE ROTATION HAS TO MAKE THE SAME CROSSING, AND IT USED TO NOT.** Baking `B` into the geometry
+ * and then handing the viewer the raw quaternion renders `R·B·p` when the correct result is
+ * `B·R·p`. The model then sits correctly at rest and turns about the wrong axis - which reads as a
+ * bug in the protocol and is not one. A basis change is ONE change and must reach the geometry and
+ * the rotation together.
  *
- *     puck +X (connector) -> scene +Z (toward the viewer)
- *     puck +Y             -> scene +X (screen right)
- *     puck +Z (top)       -> scene +Y (up)
- *
- * It is the geometry's map turned 180 degrees about the vertical, and that half-turn is the whole
- * correction.
- *
- * **THIS HALF-TURN IS ON PROBATION. It contradicts three things that agree with each other, and it
- * is here because the owner reported the rotations mirrored on 2026-11-16 and asked for the flip.**
- * What disagrees with it:
- *
- *   1. `mixospatial/hardware/electronics/pinout.md` - the accelerometer was measured on the bench
- *      the same day. Flat it reads +Z, connector tipped down it reads -X. The chip's axes ARE
- *      PROTOCOL.md section 2's frame. There is no mounting offset to compensate.
- *   2. The cube sits correctly at rest (FRONT toward the viewer, TOP up, screenshotted), so the
- *      geometry's basis is right - and the rotation is supposed to use the same one.
- *   3. Worked through by hand, the OLD basis gives the right answer for all three: a turn about
- *      puck +Y tips the top toward the connector, about +X tips it to the viewer's right, about +Z
- *      swings the front to the viewer's right. Each matches what the old code emitted.
- *
- * The one thing none of that covers is **which way the puck was HELD during the test**, and that
- * single fact produces this exact symptom. Hold the puck with the connector pointing AT you and
- * roll and pitch both reverse as you perceive them while yaw does not - because yaw is about the
- * vertical, and turning yourself around does not move the vertical. Section 2 says in bold to
- * establish the hold before touching a matrix. This matrix was touched first.
- *
- * So: if the puck is used connector-AWAY, this half-turn is a bug and the fix is to delete it. If
- * it is used connector-TOWARD, section 2's resting pose is wrong and the cube generator, the demo
- * harness and this file all need the half-turn together. One question settles it; until it is
- * asked, do not build anything else on this function.
- *
- * The rule that found it, which is worth more than the fix: **two rotations reversed and one
- * correct is a HEADING error, and the correct one names the axis.** Yaw is about the vertical, the
- * vertical survived, so the basis was 180 degrees out about the vertical. It is never a sign error
- * in one component, and chasing it as one is how the same bug got "fixed" three times in the demo
- * harness without moving.
- *
- * Two mirrored and one correct names the axis for you: the surviving rotation is the one you turned
- * about. Read it off and turn the basis, do not negate anything.
+ * Checked against the world rather than against itself. With the puck in front of you, connector
+ * pointing away, `B` sends the connector away from the viewer, the top up, and puck +Y - which is
+ * west, the viewer's left, by PROTOCOL.md section 2's compass - to the screen's left. Three
+ * directions, three agreements.
  *
  * The conversion itself: for a basis change `B`, a quaternion's vector part becomes `det(B)·B·v`
  * with `w` unchanged. `B` here is a proper rotation, `det(B) = +1`, so this is just `B` applied to
  * `(x, y, z)`. If the cube is ever regenerated with a different map, THIS FUNCTION CHANGES WITH IT.
+ *
+ * ---------------------------------------------------------------------------------------------
+ * THE HALF-TURN THAT WAS HERE FOR AN HOUR ON 2026-11-16, and why it is not coming back.
+ *
+ * The owner reported roll and pitch mirrored with yaw correct, and this function was turned 180
+ * degrees about the vertical to match. It should never have been touched, and the reasoning that
+ * sent it the wrong way is worth more than the diff:
+ *
+ *   - **Two rotations reversed and one correct is a HEADING error, and the correct one names the
+ *     axis.** That part was right. Yaw is about the vertical, the vertical survived, so something
+ *     was 180 degrees out about the vertical. It is never a sign error in one component.
+ *   - **What it does NOT tell you is WHICH of the two things is turned** - the data or the person.
+ *     Holding the puck with the connector pointing at you instead of away reverses roll and pitch
+ *     as you perceive them and leaves yaw alone, because turning yourself around does not move the
+ *     vertical. Identical symptom, opposite fix.
+ *
+ * Three things said the data was fine and were not consulted first: the accelerometer measured on
+ * the bench that morning (`mixospatial/hardware/electronics/pinout.md` - flat reads +Z, connector
+ * tipped down reads -X, so the chip's axes ARE section 2's frame), the cube sitting correctly at
+ * rest, and the three directions worked through by hand above.
+ *
+ * **Establish the hold before touching a matrix.** PROTOCOL.md section 2 says so in bold, having
+ * learned it once already in `web/demo`. It was read afterwards both times.
  */
 export function toSceneFrame(q) {
-  return { x: q.y, y: q.z, z: q.x, w: q.w };
+  return { x: -q.y, y: q.z, z: -q.x, w: q.w };
 }
 
 /**
