@@ -64,11 +64,31 @@ export function relativeTo(qZero, q) {
  *     puck +Z (top)       -> scene +Y (up)
  *
  * It is the geometry's map turned 180 degrees about the vertical, and that half-turn is the whole
- * correction. What it means: **the quaternion's +X and the cube's baked front face disagree by 180
- * degrees.** The owner confirmed the connector points AWAY in use, so this is not how the puck is
- * held - the reported +X and the direction PROTOCOL.md section 2 gives it are opposite, and the
- * generator was built on section 2. Which of the two to correct is a protocol question; this file
- * corrects the display because that is what was measured.
+ * correction.
+ *
+ * **THIS HALF-TURN IS ON PROBATION. It contradicts three things that agree with each other, and it
+ * is here because the owner reported the rotations mirrored on 2026-11-16 and asked for the flip.**
+ * What disagrees with it:
+ *
+ *   1. `mixospatial/hardware/electronics/pinout.md` - the accelerometer was measured on the bench
+ *      the same day. Flat it reads +Z, connector tipped down it reads -X. The chip's axes ARE
+ *      PROTOCOL.md section 2's frame. There is no mounting offset to compensate.
+ *   2. The cube sits correctly at rest (FRONT toward the viewer, TOP up, screenshotted), so the
+ *      geometry's basis is right - and the rotation is supposed to use the same one.
+ *   3. Worked through by hand, the OLD basis gives the right answer for all three: a turn about
+ *      puck +Y tips the top toward the connector, about +X tips it to the viewer's right, about +Z
+ *      swings the front to the viewer's right. Each matches what the old code emitted.
+ *
+ * The one thing none of that covers is **which way the puck was HELD during the test**, and that
+ * single fact produces this exact symptom. Hold the puck with the connector pointing AT you and
+ * roll and pitch both reverse as you perceive them while yaw does not - because yaw is about the
+ * vertical, and turning yourself around does not move the vertical. Section 2 says in bold to
+ * establish the hold before touching a matrix. This matrix was touched first.
+ *
+ * So: if the puck is used connector-AWAY, this half-turn is a bug and the fix is to delete it. If
+ * it is used connector-TOWARD, section 2's resting pose is wrong and the cube generator, the demo
+ * harness and this file all need the half-turn together. One question settles it; until it is
+ * asked, do not build anything else on this function.
  *
  * The rule that found it, which is worth more than the fix: **two rotations reversed and one
  * correct is a HEADING error, and the correct one names the axis.** Yaw is about the vertical, the
