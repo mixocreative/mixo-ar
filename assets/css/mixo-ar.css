@@ -677,10 +677,18 @@ model-viewer {
   gap: 10px;
 }
 
+/*
+  The card is a light glass panel in BOTH themes, so the primary button on it is dark with light
+  text in both - its colours must not come from variables that flip.
+
+  They did: the fill was `--ar-sheet-ink` and the text `--ar-card`, and in dark mode `--ar-card`
+  becomes #262626. Dark text on a dark fill, and the label simply vanished - visible only to
+  someone running the page in dark mode, which is why it shipped.
+*/
 .ar-close[data-align-now] {
-  border-color: var(--ar-sheet-ink);
-  background: var(--ar-sheet-ink);
-  color: var(--ar-card);
+  border-color: #1f1f1f;
+  background: #1f1f1f;
+  color: #ffffff;
 }
 
 /* The focus ring is gold on both, and gold on near-black needs no help; on the inverted button it

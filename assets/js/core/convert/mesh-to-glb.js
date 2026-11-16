@@ -5,9 +5,9 @@
 // through the page's import map and is never imported at the top level here: a page that only ever
 // shows GLB pays nothing for it.
 
-import { readZipEntry } from '../../zip-entries.js?v=2026111605';
-import { parsePlyMesh } from './ply.js?v=2026111605';
-import { parse3mfModelXml } from './threemf.js?v=2026111605';
+import { readZipEntry } from '../../zip-entries.js?v=2026111606';
+import { parsePlyMesh } from './ply.js?v=2026111606';
+import { parse3mfModelXml } from './threemf.js?v=2026111606';
 
 export function modelKindFromName(name) {
   const extension = modelExtensionFromName(name);

@@ -2,13 +2,13 @@
 // says so. The rendering itself is `core/viewer.js`, which is also what mixoweb vendors - so a
 // change to how a model is shown belongs there, and a change to what may be shown belongs here.
 
-import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111605';
-import { phaseProgress } from './core/convert/progress.js?v=2026111605';
-import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111605';
-import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111605';
-import { createPuck } from './puck/puck.js?v=2026111605';
-import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111605';
-import { listZipEntries } from './zip-entries.js?v=2026111605';
+import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111606';
+import { phaseProgress } from './core/convert/progress.js?v=2026111606';
+import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111606';
+import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111606';
+import { createPuck } from './puck/puck.js?v=2026111606';
+import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111606';
+import { listZipEntries } from './zip-entries.js?v=2026111606';
 
 const stage = typeof document === 'undefined' ? null : document.querySelector('[data-mixo-ar]');
 const LANGUAGE_STORAGE_KEY = 'mixo-ar-language';
@@ -94,13 +94,13 @@ const I18N = {
     puckBatteryUnknown: '電量未知',
     puckConnect: '連線',
     puckDisconnect: '中斷連線',
-    puckAlign: '對正方向',
+    puckAlign: '校正方向',
     puckResetView: '重設視角',
-    alignAsk: '把控制器擺成你想要面對你的方向，然後按「立即對正」。',
-    alignReady: '很穩定。擺到你要的位置後，按「立即對正」。',
+    alignAsk: '把控制器擺成你想要面對你的方向，然後按「立即校正」。',
+    alignReady: '很穩定。擺到你要的位置後，按「立即校正」。',
     cubeFront: '正面',
     alignHoldStill: '請保持不動，讀取時偵測到移動。',
-    alignNow: '立即對正',
+    alignNow: '立即校正',
     helpTitle: '使用說明',
     diagramAlt: '畫面控制位置',
     stepModels: '如果連結包含多個模型，會在這裡列出。從裝置開啟的檔案一次顯示一個模型。',
@@ -157,8 +157,8 @@ const I18N = {
     puckDisconnect: '切断',
     puckAlign: '向きを合わせる',
     puckResetView: '表示をリセット',
-    alignAsk: 'コントローラーを自分に向けたい向きで持ち、「位置を合わせる」を押してください。',
-    alignReady: '安定しています。希望の向きになったら「位置を合わせる」を押してください。',
+    alignAsk: 'コントローラーを自分に向けたい向きで持ち、「いますぐ合わせる」を押してください。',
+    alignReady: '安定しています。向きが決まったら「いますぐ合わせる」を押してください。',
     cubeFront: '正面',
     alignHoldStill: '動いたため読み取れません。そのまま静止してください。',
     alignNow: 'いますぐ合わせる',
@@ -221,7 +221,7 @@ async function start(stage) {
   showArButtonPreview(stage, strings, window.location.search);
   enablePuck(stage, state, strings, status);
 
-  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111605');
+  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111606');
   const decoderBase = new URL('../vendor/model-viewer/decoders/', import.meta.url).href;
   ModelViewerElement.dracoDecoderLocation = decoderBase + 'draco/';
   ModelViewerElement.ktx2TranscoderLocation = decoderBase + 'ktx2/';
@@ -244,7 +244,7 @@ async function start(stage) {
       state,
       strings,
       status,
-      [{ url: './assets/ar/orientation-cube.glb?v=2026111605', name: 'orientation cube' }],
+      [{ url: './assets/ar/orientation-cube.glb?v=2026111606', name: 'orientation cube' }],
       false,
       strings.loading,
     );
@@ -325,7 +325,7 @@ async function enablePuck(stage, state, strings, status) {
       state,
       strings,
       status,
-      [{ url: './assets/ar/orientation-cube.glb?v=2026111605', name: 'orientation cube' }],
+      [{ url: './assets/ar/orientation-cube.glb?v=2026111606', name: 'orientation cube' }],
       false,
       strings.loading,
     );

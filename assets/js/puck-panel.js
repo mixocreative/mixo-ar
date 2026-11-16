@@ -20,7 +20,7 @@ import {
   orientationAttribute,
   readStatus,
   relativeTo,
-} from './puck-orientation.js?v=2026111605';
+} from './puck-orientation.js?v=2026111606';
 
 /** Readings are ~50-100 Hz, so half a second is tens of them; this is the floor, not the target. */
 const ALIGN_MIN_READINGS = 5;
@@ -149,13 +149,39 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
       cardAsk.textContent = strings.alignAsk || '';
     }
 
+    /*
+     * FROZEN WHILE THE CARD IS OPEN.
+     *
+     * The person is being asked to match the puck to what is on screen, so the thing on screen
+     * must not move - and `camera-controls` means a stray drag turns it mid-answer, after which
+     * they line the puck up against a view that has shifted and the reference is wrong by
+     * exactly that drag. Nothing says it happened.
+     *
+     * Restored in `finishAlign` and on Close, so this is the only state that takes it away.
+     */
+    const viewer = getViewer();
+
+    if (viewer) {
+      viewer.removeAttribute('camera-controls');
+    }
+
     showCard(true);
+  };
+
+  /** Hand the view back: the card is the only thing that takes it away. */
+  const thawView = () => {
+    const viewer = getViewer();
+
+    if (viewer) {
+      viewer.setAttribute('camera-controls', '');
+    }
   };
 
   const finishAlign = (readings) => {
     state.qZero = averageQuaternions(readings);
     state.aligning = false;
     showCard(false);
+    thawView();
     render();
   };
 
@@ -345,6 +371,8 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
       cancel.addEventListener('click', () => {
         state.aligning = false;
         showCard(false);
+        // Walking away must hand the view back too, or Close leaves a model nobody can turn.
+        thawView();
       });
     }
   }
