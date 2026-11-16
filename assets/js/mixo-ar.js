@@ -2,13 +2,13 @@
 // says so. The rendering itself is `core/viewer.js`, which is also what mixoweb vendors - so a
 // change to how a model is shown belongs there, and a change to what may be shown belongs here.
 
-import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111609';
-import { phaseProgress } from './core/convert/progress.js?v=2026111609';
-import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111609';
-import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111609';
-import { createPuck } from './puck/puck.js?v=2026111609';
-import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111609';
-import { listZipEntries } from './zip-entries.js?v=2026111609';
+import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111610';
+import { phaseProgress } from './core/convert/progress.js?v=2026111610';
+import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111610';
+import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111610';
+import { createPuck } from './puck/puck.js?v=2026111610';
+import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111610';
+import { listZipEntries } from './zip-entries.js?v=2026111610';
 
 const stage = typeof document === 'undefined' ? null : document.querySelector('[data-mixo-ar]');
 const LANGUAGE_STORAGE_KEY = 'mixo-ar-language';
@@ -221,7 +221,7 @@ async function start(stage) {
   showArButtonPreview(stage, strings, window.location.search);
   enablePuck(stage, state, strings, status);
 
-  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111609');
+  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111610');
   const decoderBase = new URL('../vendor/model-viewer/decoders/', import.meta.url).href;
   ModelViewerElement.dracoDecoderLocation = decoderBase + 'draco/';
   ModelViewerElement.ktx2TranscoderLocation = decoderBase + 'ktx2/';
@@ -244,7 +244,7 @@ async function start(stage) {
       state,
       strings,
       status,
-      [{ url: './assets/ar/orientation-cube.glb?v=2026111609', name: 'orientation cube' }],
+      [{ url: './assets/ar/orientation-cube.glb?v=2026111610', name: 'orientation cube' }],
       false,
       strings.loading,
     );
@@ -325,7 +325,7 @@ async function enablePuck(stage, state, strings, status) {
       state,
       strings,
       status,
-      [{ url: './assets/ar/orientation-cube.glb?v=2026111609', name: 'orientation cube' }],
+      [{ url: './assets/ar/orientation-cube.glb?v=2026111610', name: 'orientation cube' }],
       false,
       strings.loading,
     );
@@ -371,10 +371,25 @@ async function enablePuck(stage, state, strings, status) {
        * `{ once: true }` so a later model the person opens themselves is framed normally.
        */
       const home = () => {
-        // A viewer mounted moments ago still carries `auto-rotate` from its attribute defaults,
-        // and a turntable that resumes after the camera is placed undoes the placement a frame
-        // later, leaving no trace of why.
+        // A viewer mounted moments ago still carries `auto-rotate` from its attribute defaults.
         state.viewer.removeAttribute('auto-rotate');
+
+        /*
+         * AND THE ROTATION IT ALREADY APPLIED HAS TO BE UNDONE, which is a separate thing.
+         *
+         * `auto-rotate` is NOT camera orbit. It is a turntable rotation applied to the scene, and
+         * removing the attribute stops it while leaving the angle it had reached. So every number
+         * worth checking - cameraOrbit, the orientation attribute - reads exactly zero while the
+         * model sits visibly turned.
+         *
+         * Worse, it is invisible in a quick test: `auto-rotate-delay` defaults to 3000 ms, so
+         * connecting within three seconds of load finds a turntable that never started. Measured
+         * after waiting nine seconds: 34 degrees of leftover rotation with cameraTheta reading 0.
+         * That is also why it looked different on every reload - the angle depends on how long
+         * the page was looked at before connecting.
+         */
+        state.viewer.resetTurntableRotation?.();
+
         state.viewer.cameraOrbit = '0deg 90deg auto';
         state.viewer.jumpCameraToGoal?.();
       };
