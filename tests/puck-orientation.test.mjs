@@ -80,17 +80,19 @@ test('a puck turn appears about the matching SCENE axis, not the puck one', () =
   // model sat correctly at rest while turning about the wrong axis - which reads as a fault in the
   // device and is not one.
   //
-  // Each case below is one row of the generator's own comment, so if the cube is ever regenerated
-  // with a different map these fail and name which row moved.
+  // THESE ROWS ARE MEASURED AGAINST THE DEVICE, not copied from the generator's comment - and the
+  // two differ by 180 degrees about the vertical on purpose. The geometry uses the generator's map
+  // so the cube sits right at rest; the ROTATION uses that map turned about the vertical, because
+  // that is what the puck in a hand does. `toSceneFrame` explains why, and what is still
+  // unreconciled about it.
   //
-  // These three rows were turned 180 degrees about the vertical for an hour on 2026-11-16 and put
-  // back. Rotations reported as mirrored are a HEADING error, and when the puck is held the other
-  // way round the heading that is wrong is the person's, not the device's. `toSceneFrame` tells
-  // the story. Do not edit this table to chase a mirror; establish the hold first.
+  // They were flipped to the generator's map and back again on 2026-11-16, in both directions, on
+  // reasoning rather than measurement. Do not edit this table from a matrix. Tip the connector end
+  // down: the cube must show its BOTTOM. That is the test.
   const cases = [
     ['puck +Z, the top face', [0, 0, 1], [0, 1, 0], 'scene +Y, up'],
-    ['puck +X, the USB end', [1, 0, 0], [0, 0, -1], 'scene -Z, away from the viewer'],
-    ['puck +Y', [0, 1, 0], [-1, 0, 0], 'scene -X, to the left'],
+    ['puck +X, the USB end', [1, 0, 0], [0, 0, 1], 'scene +Z, toward the viewer'],
+    ['puck +Y', [0, 1, 0], [1, 0, 0], 'scene +X, to the right'],
   ];
 
   for (const [what, puckAxis, sceneAxis, where] of cases) {

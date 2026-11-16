@@ -51,49 +51,54 @@ export function relativeTo(qZero, q) {
  * The puck's rotation, expressed in the SCENE's axes instead of the puck's.
  *
  * `tools/make-orientation-cube.py` bakes a basis change into the cube's VERTICES so the model sits
- * the right way up at rest: `(x, y, z) -> (-y, z, -x)`, which sends puck +X (the connector) to
- * scene -Z, puck +Z (the top) to scene +Y and puck +Y to scene -X. Call that map `B`.
+ * the right way up at rest: `(x, y, z) -> (-y, z, -x)`, sending puck +X (the connector) to scene
+ * -Z, puck +Z (the top) to scene +Y and puck +Y to scene -X. Call that map `B`.
  *
  * **THE ROTATION HAS TO MAKE THE SAME CROSSING, AND IT USED TO NOT.** Baking `B` into the geometry
  * and then handing the viewer the raw quaternion renders `R·B·p` when the correct result is
- * `B·R·p`. The model then sits correctly at rest and turns about the wrong axis - which reads as a
- * bug in the protocol and is not one. A basis change is ONE change and must reach the geometry and
- * the rotation together.
+ * `B·R·p`. The model sits correctly at rest and turns about the wrong axis. A basis change is ONE
+ * change and must reach the geometry and the rotation together.
  *
- * Checked against the world rather than against itself. With the puck in front of you, connector
- * pointing away, `B` sends the connector away from the viewer, the top up, and puck +Y - which is
- * west, the viewer's left, by PROTOCOL.md section 2's compass - to the screen's left. Three
- * directions, three agreements.
+ * **AND THEN THE ROTATION NEEDS `B` TURNED 180 DEGREES ABOUT THE VERTICAL ON TOP OF THAT, which
+ * the geometry does NOT need.** That is what the map below is, and it is measured, not derived:
  *
- * The conversion itself: for a basis change `B`, a quaternion's vector part becomes `det(B)·B·v`
- * with `w` unchanged. `B` here is a proper rotation, `det(B) = +1`, so this is just `B` applied to
- * `(x, y, z)`. If the cube is ever regenerated with a different map, THIS FUNCTION CHANGES WITH IT.
+ *     puck +X (connector) -> scene +Z (toward the viewer)
+ *     puck +Y             -> scene +X (screen right)
+ *     puck +Z (top)       -> scene +Y (up)
+ *
+ * The geometry keeps plain `B` - the cube sits correctly at rest and was screenshotted doing it -
+ * while the rotation takes `B` turned about the vertical. The two differing is the whole finding.
+ *
+ * HOW IT WAS ESTABLISHED, because it was got wrong in both directions first. The owner reported
+ * roll and pitch reversed with yaw correct, twice, on two different days' builds, and then
+ * answered the one unambiguous question with a device in hand: tip the connector end down, and
+ * plain `B` renders the cube's TOP when the physical move exposes its BOTTOM. The half-turn makes
+ * that row right and leaves yaw untouched.
+ *
+ * **Two reversed and one correct is a HEADING error and the surviving axis names it** - yaw is
+ * about the vertical, so the vertical is the axis. That rule is sound and is the useful part. What
+ * it does NOT tell you is which END is turned, the data or the person, and those need opposite
+ * fixes. The hold was confirmed connector-away, which rules the person out and leaves the data.
  *
  * ---------------------------------------------------------------------------------------------
- * THE HALF-TURN THAT WAS HERE FOR AN HOUR ON 2026-11-16, and why it is not coming back.
+ * STILL UNRECONCILED, and the next person should start here rather than trusting this line.
  *
- * The owner reported roll and pitch mirrored with yaw correct, and this function was turned 180
- * degrees about the vertical to match. It should never have been touched, and the reasoning that
- * sent it the wrong way is worth more than the diff:
+ * `mixospatial/hardware/electronics/pinout.md` has the accelerometer measured on the bench:
+ * flat it reads +Z, connector tipped down it reads -X, so the ACCELEROMETER's axes are
+ * PROTOCOL.md section 2's frame exactly. That reasoning is sound and this half-turn contradicts
+ * it. The half-turn is here anyway, because it was measured against the device twice and the
+ * bench note was measured once and constrains a different sensor.
  *
- *   - **Two rotations reversed and one correct is a HEADING error, and the correct one names the
- *     axis.** That part was right. Yaw is about the vertical, the vertical survived, so something
- *     was 180 degrees out about the vertical. It is never a sign error in one component.
- *   - **What it does NOT tell you is WHICH of the two things is turned** - the data or the person.
- *     Holding the puck with the connector pointing at you instead of away reverses roll and pitch
- *     as you perceive them and leaves yaw alone, because turning yourself around does not move the
- *     vertical. Identical symptom, opposite fix.
- *
- * Three things said the data was fine and were not consulted first: the accelerometer measured on
- * the bench that morning (`mixospatial/hardware/electronics/pinout.md` - flat reads +Z, connector
- * tipped down reads -X, so the chip's axes ARE section 2's frame), the cube sitting correctly at
- * rest, and the three directions worked through by hand above.
- *
- * **Establish the hold before touching a matrix.** PROTOCOL.md section 2 says so in bold, having
- * learned it once already in `web/demo`. It was read afterwards both times.
+ * The gap is that **the orientation comes from the GYRO and only the accelerometer was ever
+ * measured.** They sit on one die and are supposed to share a frame; nobody has checked. `imu.c`
+ * already logs which gyro component answers and with what sign, at debug level, for exactly this.
+ * Turn the puck about one declared axis at a time, read that log, and either this half-turn gets
+ * deleted and the firmware fixed at the source - which is where it belongs, because `web/demo`
+ * consumes the same wire - or the bench note gets an explanation. Until then this is a patch at
+ * the last possible moment, and it is only correct for THIS consumer.
  */
 export function toSceneFrame(q) {
-  return { x: -q.y, y: q.z, z: -q.x, w: q.w };
+  return { x: q.y, y: q.z, z: q.x, w: q.w };
 }
 
 /**

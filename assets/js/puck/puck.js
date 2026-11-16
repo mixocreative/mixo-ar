@@ -27,7 +27,7 @@ import {
   decodeOrientation,
   droppedSince,
   encodeCommand,
-} from './codec.js?v=2026111613';
+} from './codec.js?v=2026111614';
 
 /**
  * How long to wait before each reconnection attempt, and — by its length — how many there are.
