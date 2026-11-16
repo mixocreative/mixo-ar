@@ -23,11 +23,12 @@ import {
   bytesToHex,
   commandRejection,
   decodeBatteryLevel,
+  decodeBatteryStatus,
   decodeEvent,
   decodeOrientation,
   droppedSince,
   encodeCommand,
-} from './codec.js?v=2026111616';
+} from './codec.js?v=2026111617';
 
 /**
  * How long to wait before each reconnection attempt, and — by its length — how many there are.
@@ -94,6 +95,7 @@ export function createPuck({
   let lastOrientationSeq = null;
   let lastEventSeq = null;
   let battery = null;
+  let batteryStatus = null;
 
   const emit = (event, ...args) => {
     for (const handler of handlers.get(event) || []) {
@@ -190,6 +192,39 @@ export function createPuck({
     emit('event', decoded);
   };
 
+  /**
+   * The optional status characteristic: is a cell fitted, is it charging.
+   *
+   * `null` in, `null` out - a puck without the characteristic says nothing, and nothing is a
+   * valid answer that the page renders as "unknown" rather than as "no". Never counted as a
+   * rejection, because not having an optional characteristic is not a protocol violation.
+   */
+  const onBatteryStatusBytes = (bytes) => {
+    if (bytes === null) {
+      batteryStatus = null;
+      emit('batteryStatus', null);
+
+      return;
+    }
+
+    const decoded = decodeBatteryStatus(bytes);
+
+    if (!decoded.ok) {
+      batteryStatus = null;
+      emit('batteryStatus', null);
+
+      return;
+    }
+
+    batteryStatus = {
+      present: decoded.present,
+      charging: decoded.charging,
+      wiredPower: decoded.wiredPower,
+    };
+
+    emit('batteryStatus', batteryStatus);
+  };
+
   const onBatteryBytes = (bytes) => {
     // `null` is how the transport says the read itself failed. Section 4: until a measurement
     // passes the device's own plausibility check nothing is notified and a read fails with ATT
@@ -239,6 +274,7 @@ export function createPuck({
     orientation: onOrientationBytes,
     event: onEventBytes,
     battery: onBatteryBytes,
+    batteryStatus: onBatteryStatusBytes,
     closed: onClosed,
   };
 
@@ -292,7 +328,7 @@ export function createPuck({
   }
 
   return {
-    /** `state` · `orientation` · `event` · `battery` · `diagnostics`. */
+    /** `state` · `orientation` · `event` · `battery` · `batteryStatus` · `diagnostics`. */
     on(event, handler) {
       handlers.set(event, [...(handlers.get(event) || []), handler]);
     },
@@ -364,6 +400,10 @@ export function createPuck({
     /** Read-only views, for a consumer that renders on its own clock rather than on our events. */
     get link() {
       return link;
+    },
+
+    get batteryStatus() {
+      return batteryStatus;
     },
 
     get battery() {

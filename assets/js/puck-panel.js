@@ -20,7 +20,7 @@ import {
   orientationAttribute,
   readStatus,
   relativeTo,
-} from './puck-orientation.js?v=2026111616';
+} from './puck-orientation.js?v=2026111617';
 
 /** Readings are ~50-100 Hz, so half a second is tens of them; this is the floor, not the target. */
 const ALIGN_MIN_READINGS = 5;
@@ -60,12 +60,14 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
   const connectButton = control.querySelector('[data-puck-connect]');
   const alignButton = control.querySelector('[data-puck-align]');
     const card = document.querySelector('[data-align-card]');
+  const chargeIcon = document.querySelector('[data-puck-charge]');
   const cardAsk = card ? card.querySelector('[data-align-ask]') : null;
 
   const state = {
     link: 'idle',
     qZero: null,
     battery: null,
+    batteryStatus: null,
     aligning: false,
     readings: [],
     startedAt: 0,
@@ -99,7 +101,25 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
       alignButton.hidden = state.link !== 'connected';
     }
 
-    if (state.link === 'connected' && state.battery !== null) {
+    /*
+     * CHARGING IS DRAWN ONLY WHEN THE PUCK SAYS SO, never inferred.
+     *
+     * `charging` is three-valued: true, false, and null for "the puck did not say" - which is
+     * what older firmware without the status characteristic reports. Drawing the bolt for null
+     * would be inventing a fact; hiding it is the honest rendering of not knowing.
+     */
+    if (chargeIcon) {
+      chargeIcon.hidden = !(state.link === 'connected' && state.batteryStatus?.charging === true);
+    }
+
+    if (state.link === 'connected' && state.batteryStatus?.present === false) {
+      /*
+       * No cell fitted is NOT nought per cent, and this is the whole reason the status
+       * characteristic is read. A bench board runs from USB with empty battery pads, and a
+       * percentage - any percentage - would be a confident lie about hardware that is absent.
+       */
+      say('puckConnected', `· ${strings.puckNoCell}`);
+    } else if (state.link === 'connected' && state.battery !== null) {
       say('puckConnected', `· ${state.battery}%`);
     } else if (state.link === 'connected') {
       // PROTOCOL.md §4: no plausible reading yet is reported as unknown, never as 0%.
@@ -290,6 +310,11 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
     if (state.readings.length > 0) {
       finishAlign(state.readings.slice(-ALIGN_MIN_READINGS));
     }
+  });
+
+  source.on('batteryStatus', (status) => {
+    state.batteryStatus = status;
+    render();
   });
 
   source.on('battery', (percent) => {

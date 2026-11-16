@@ -26,6 +26,16 @@ export const BATTERY_SERVICE = 'battery_service';
 export const BATTERY_LEVEL = 'battery_level';
 
 /**
+ * Battery Level Status, `0x2BED`. Standard, and OPTIONAL in both directions.
+ *
+ * It carries whether a cell is fitted at all and whether it is charging - neither of which the
+ * plain Battery Level can express, and both of which a page wants to draw. A puck whose firmware
+ * predates it simply does not have the characteristic, and everything below treats that as
+ * *unknown* rather than as a failure.
+ */
+export const BATTERY_LEVEL_STATUS = 0x2bed;
+
+/**
  * Does this browser have the API at all?
  *
  * **Feature-detect; never sniff the user agent.** Web Bluetooth is Chrome, Edge, Opera and Brave on
@@ -233,6 +243,32 @@ export function createWebBluetoothTransport({
       }
 
       handlers.battery(await level.readValue());
+
+      /*
+       * The status characteristic, separately and forgivingly.
+       *
+       * Its own try/catch because it is optional: older firmware does not have it, and a puck
+       * that reports a perfectly good percentage must not be treated as broken for lacking the
+       * extra. A failure here leaves charging and "is a cell fitted" unknown, which is what the
+       * page draws when it has not been told.
+       */
+      try {
+        const status = await service.getCharacteristic(BATTERY_LEVEL_STATUS);
+
+        status.addEventListener('characteristicvaluechanged', (change) => {
+          handlers.batteryStatus(change.target.value);
+        });
+
+        try {
+          await status.startNotifications();
+        } catch {
+          // Same as above: notify is optional, a read still works.
+        }
+
+        handlers.batteryStatus(await status.readValue());
+      } catch {
+        handlers.batteryStatus(null);
+      }
     } catch {
       // Section 4: a read that fails means "no plausible reading yet", and the only honest answer
       // a client can give is unknown. Never 0 %.

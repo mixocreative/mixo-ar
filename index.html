@@ -11,7 +11,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./assets/favicon/favicon-16x16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/favicon/apple-touch-icon.png">
   <link rel="manifest" href="./site.webmanifest">
-  <link rel="stylesheet" href="./assets/css/mixo-ar.css?v=2026111616">
+  <link rel="stylesheet" href="./assets/css/mixo-ar.css?v=2026111617">
   <script type="importmap">
     {
       "imports": {
@@ -74,6 +74,13 @@
           </button>
           <span class="ar-menu ar-puck-menu" data-menu role="menu" aria-label="Puck" data-i18n-aria="puckLabel" hidden>
             <span class="ar-puck-state" data-puck-state role="status"></span>
+            <!-- Shown only when the puck REPORTS charging. Older firmware says nothing and the
+                 bolt stays hidden, which is "we were not told" rather than "it is not charging". -->
+            <i class="ar-puck-charge" data-puck-charge hidden aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12Z" fill="currentColor"/>
+              </svg>
+            </i>
             <button type="button" role="menuitem" data-puck-connect>
               <svg class="ar-menu-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M12 3.6v7.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -172,7 +179,7 @@
          it goes stale exactly when the chrome changes - which it just did, and a returning visitor
          was still shown the old glyph. The brand images and the fallback model carry no token
          because they do not describe the UI. -->
-    <img class="ar-diagram" src="./assets/ar/instructions.svg?v=2026111616" alt="Where the controls are on the screen" data-i18n-alt="diagramAlt">
+    <img class="ar-diagram" src="./assets/ar/instructions.svg?v=2026111617" alt="Where the controls are on the screen" data-i18n-alt="diagramAlt">
     <ol class="ar-steps">
       <li><span class="ar-step">1</span><span data-i18n="stepModels">If the URL or a local load includes more than one model, they are listed here.</span></li>
       <li><span class="ar-step">2</span><span><span data-i18n="stepArBefore">On a phone that supports it,</span> <span class="ar-chip"><svg class="ar-glyph ar-scan-glyph" viewBox="0 0 32 24" aria-hidden="true" focusable="false"><path class="ar-scan-corner" d="M2 7V2h5M25 2h5v5M30 17v5h-5M7 22H2v-5"/><path class="ar-scan-cube" d="M16 4 23 8 16 12 9 8zM9 9.5l7 4v7l-7-4zM23 9.5l-7 4v7l7-4z"/></svg><span aria-hidden="true">AR</span></span> <span data-i18n="stepArAfter">places the model in the room in front of you.</span></span></li>
@@ -210,6 +217,6 @@ background: linear-gradient(307deg,rgba(96, 35, 166, 1) 0%, rgba(207, 0, 41, 1) 
     <form method="dialog"><button class="ar-close" data-i18n="close">Close</button></form>
   </dialog>
 
-  <script type="module" src="./assets/js/mixo-ar.js?v=2026111616"></script>
+  <script type="module" src="./assets/js/mixo-ar.js?v=2026111617"></script>
 </body>
 </html>

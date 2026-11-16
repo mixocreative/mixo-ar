@@ -239,6 +239,48 @@ export function decodeBatteryLevel(input) {
 }
 
 /**
+ * Decode the standard Battery Level Status characteristic, `0x2BED`.
+ *
+ * NOT ours and not in PROTOCOL.md on purpose. Charging state and "is a cell even fitted" are
+ * exactly what this standard characteristic exists to carry, and the alternative - new bits in
+ * §5's status byte - is a trap: §5 says reserved bits MUST be zero, so a client cached from
+ * before the change would reject every packet rather than ignore one field. A separate
+ * characteristic is additive, and a client that has never heard of it simply does not read it.
+ *
+ * Layout (Bluetooth SIG): `flags` u8, then `powerState` u16 little-endian, then optional fields
+ * this does not need. Within `powerState`:
+ *
+ *     bit 0      battery present
+ *     bits 1-2   wired external power   0 no, 1 yes, 2 unknown
+ *     bits 5-6   charge state           0 unknown, 1 charging, 2 discharging, 3 idle
+ *
+ * `present: false` is the honest answer for a bench board with empty battery pads, and the whole
+ * reason this characteristic is read at all - the plain Battery Level would have to answer with a
+ * percentage, and any percentage would be a lie.
+ */
+export function decodeBatteryStatus(input) {
+  const bytes = asBytes(input);
+
+  // Three bytes is the minimum: flags plus the 16-bit power state. Later fields are optional and
+  // a longer packet is a NEWER sender, not a broken one, so length is a floor and not an equality.
+  if (bytes.length < 3) {
+    return refuse(REASONS.wrongLength, bytes.length);
+  }
+
+  const powerState = bytes[1] | (bytes[2] << 8);
+  const wired = (powerState >> 1) & 0b11;
+  const charge = (powerState >> 5) & 0b11;
+
+  return {
+    ok: true,
+    present: (powerState & 0b1) === 1,
+    /** `null` means the device said *unknown*, which is not the same as *no*. */
+    wiredPower: wired === 2 ? null : wired === 1,
+    charging: charge === 0 ? null : charge === 1,
+  };
+}
+
+/**
  * Build an orientation packet (section 5).
  *
  * **The device is what really does this.** It is here for the fake puck and for the tests, where it

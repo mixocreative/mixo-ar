@@ -2,13 +2,13 @@
 // says so. The rendering itself is `core/viewer.js`, which is also what mixoweb vendors - so a
 // change to how a model is shown belongs there, and a change to what may be shown belongs here.
 
-import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111616';
-import { phaseProgress } from './core/convert/progress.js?v=2026111616';
-import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111616';
-import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111616';
-import { createPuck } from './puck/puck.js?v=2026111616';
-import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111616';
-import { listZipEntries } from './zip-entries.js?v=2026111616';
+import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111617';
+import { phaseProgress } from './core/convert/progress.js?v=2026111617';
+import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111617';
+import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111617';
+import { createPuck } from './puck/puck.js?v=2026111617';
+import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111617';
+import { listZipEntries } from './zip-entries.js?v=2026111617';
 
 const stage = typeof document === 'undefined' ? null : document.querySelector('[data-mixo-ar]');
 const LANGUAGE_STORAGE_KEY = 'mixo-ar-language';
@@ -31,6 +31,7 @@ const I18N = {
     puckLostReason: 'The puck went out of range, or its battery ran down.',
     puckNoSensor: 'This puck’s motion sensor did not answer, so it cannot report a direction.',
     puckBatteryUnknown: 'battery unknown',
+    puckNoCell: 'no cell fitted',
     puckConnect: 'Connect',
     puckDisconnect: 'Disconnect',
     puckAlign: 'Line up',
@@ -92,6 +93,7 @@ const I18N = {
     puckLostReason: '控制器超出範圍，或電量耗盡。',
     puckNoSensor: '這個控制器的動作感測器沒有回應，無法回報方向。',
     puckBatteryUnknown: '電量未知',
+    puckNoCell: '未裝電池',
     puckConnect: '連線',
     puckDisconnect: '中斷連線',
     puckAlign: '校正方向',
@@ -153,6 +155,7 @@ const I18N = {
     puckLostReason: 'コントローラーが範囲外になったか、電池が切れました。',
     puckNoSensor: 'このコントローラーのモーションセンサーが応答しないため、向きを報告できません。',
     puckBatteryUnknown: '電池残量不明',
+    puckNoCell: '電池なし',
     puckConnect: '接続',
     puckDisconnect: '切断',
     puckAlign: '向きを合わせる',
@@ -221,7 +224,7 @@ async function start(stage) {
   showArButtonPreview(stage, strings, window.location.search);
   enablePuck(stage, state, strings, status);
 
-  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111616');
+  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111617');
   const decoderBase = new URL('../vendor/model-viewer/decoders/', import.meta.url).href;
   ModelViewerElement.dracoDecoderLocation = decoderBase + 'draco/';
   ModelViewerElement.ktx2TranscoderLocation = decoderBase + 'ktx2/';
@@ -244,7 +247,7 @@ async function start(stage) {
       state,
       strings,
       status,
-      [{ url: './assets/ar/orientation-cube.glb?v=2026111616', name: 'orientation cube' }],
+      [{ url: './assets/ar/orientation-cube.glb?v=2026111617', name: 'orientation cube' }],
       false,
       strings.loading,
     );
@@ -325,7 +328,7 @@ async function enablePuck(stage, state, strings, status) {
       state,
       strings,
       status,
-      [{ url: './assets/ar/orientation-cube.glb?v=2026111616', name: 'orientation cube' }],
+      [{ url: './assets/ar/orientation-cube.glb?v=2026111617', name: 'orientation cube' }],
       false,
       strings.loading,
     );

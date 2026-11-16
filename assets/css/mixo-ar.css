@@ -838,3 +838,19 @@ model-viewer {
     opacity: 0.55;
   }
 }
+
+/* The charging bolt, beside the puck's status line. Hidden unless the puck says it is charging -
+   see puck-panel.js for why "we were not told" must not draw anything. */
+.ar-puck-charge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  color: #2f9e44;
+}
+
+.ar-puck-charge[hidden] { display: none; }
+
+.ar-puck-charge svg {
+  width: 13px;
+  height: 13px;
+}
