@@ -20,7 +20,7 @@ import {
   orientationAttribute,
   readStatus,
   relativeTo,
-} from './puck-orientation.js?v=2026111618';
+} from './puck-orientation.js?v=2026111619';
 
 /** Readings are ~50-100 Hz, so half a second is tens of them; this is the floor, not the target. */
 const ALIGN_MIN_READINGS = 5;
@@ -68,6 +68,8 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
     qZero: null,
     battery: null,
     batteryStatus: null,
+    /** The most recent run of readings that was genuinely still; see the orientation handler. */
+    steady: [],
     aligning: false,
     readings: [],
     startedAt: 0,
@@ -163,6 +165,9 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
 
     state.aligning = true;
     state.readings = [];
+    /* Cleared with the readings: a steady window from the LAST alignment would silently
+     * confirm the previous pose if the person tapped before holding still this time. */
+    state.steady = [];
     state.startedAt = 0;
 
     if (cardAsk) {
@@ -307,8 +312,10 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
       return;
     }
 
-    if (state.readings.length > 0) {
-      finishAlign(state.readings.slice(-ALIGN_MIN_READINGS));
+    const settled = state.steady.length > 0 ? state.steady : state.readings;
+
+    if (settled.length > 0) {
+      finishAlign(settled.slice(-ALIGN_MIN_READINGS));
     }
   });
 
@@ -363,8 +370,25 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
        * The still-window still runs underneath, because the button averages whatever it has seen
        * and a steady set of readings is a better reference than one sample.
        */
-      if (cardAsk && state.readings.length >= ALIGN_MIN_READINGS) {
-        cardAsk.textContent = strings.alignReady || strings.alignAsk || '';
+      if (state.readings.length >= ALIGN_MIN_READINGS) {
+        /*
+         * KEEP THE LAST STEADY WINDOW, because TAPPING THE PUCK MOVES THE PUCK.
+         *
+         * The confirming gesture is a knock on the very object being held still, so by the
+         * time the event arrives the reading buffer has been reset by the knock and holds
+         * the disturbance itself - the single worst reference available, and the one a naive
+         * implementation would average. This keeps the last window that genuinely was still,
+         * so the tap confirms the pose the person was holding rather than the one their
+         * finger just created.
+         *
+         * The button has the same problem in a quieter form - a hand leaving the puck to
+         * reach a mouse - so it uses this too.
+         */
+        state.steady = state.readings.slice(-ALIGN_MIN_READINGS);
+
+        if (cardAsk) {
+          cardAsk.textContent = strings.alignReady || strings.alignAsk || '';
+        }
       }
 
       return;
@@ -459,8 +483,10 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
       // 0010 keeps a button as the fallback: a hand that never quite settles, or a desk on a bus,
       // must still be able to finish. It takes whatever has been seen rather than refusing.
       now.addEventListener('click', () => {
-        if (state.readings.length > 0) {
-          finishAlign(state.readings.slice(-ALIGN_MIN_READINGS));
+        const settled = state.steady.length > 0 ? state.steady : state.readings;
+
+        if (settled.length > 0) {
+          finishAlign(settled.slice(-ALIGN_MIN_READINGS));
         }
       });
     }

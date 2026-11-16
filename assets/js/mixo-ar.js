@@ -2,13 +2,13 @@
 // says so. The rendering itself is `core/viewer.js`, which is also what mixoweb vendors - so a
 // change to how a model is shown belongs there, and a change to what may be shown belongs here.
 
-import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111618';
-import { phaseProgress } from './core/convert/progress.js?v=2026111618';
-import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111618';
-import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111618';
-import { createPuck } from './puck/puck.js?v=2026111618';
-import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111618';
-import { listZipEntries } from './zip-entries.js?v=2026111618';
+import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111619';
+import { phaseProgress } from './core/convert/progress.js?v=2026111619';
+import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111619';
+import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111619';
+import { createPuck } from './puck/puck.js?v=2026111619';
+import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111619';
+import { listZipEntries } from './zip-entries.js?v=2026111619';
 
 const stage = typeof document === 'undefined' ? null : document.querySelector('[data-mixo-ar]');
 const LANGUAGE_STORAGE_KEY = 'mixo-ar-language';
@@ -224,7 +224,7 @@ async function start(stage) {
   showArButtonPreview(stage, strings, window.location.search);
   enablePuck(stage, state, strings, status);
 
-  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111618');
+  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111619');
   const decoderBase = new URL('../vendor/model-viewer/decoders/', import.meta.url).href;
   ModelViewerElement.dracoDecoderLocation = decoderBase + 'draco/';
   ModelViewerElement.ktx2TranscoderLocation = decoderBase + 'ktx2/';
@@ -247,7 +247,7 @@ async function start(stage) {
       state,
       strings,
       status,
-      [{ url: './assets/ar/orientation-cube.glb?v=2026111618', name: 'orientation cube' }],
+      [{ url: './assets/ar/orientation-cube.glb?v=2026111619', name: 'orientation cube' }],
       false,
       strings.loading,
     );
@@ -328,7 +328,7 @@ async function enablePuck(stage, state, strings, status) {
       state,
       strings,
       status,
-      [{ url: './assets/ar/orientation-cube.glb?v=2026111618', name: 'orientation cube' }],
+      [{ url: './assets/ar/orientation-cube.glb?v=2026111619', name: 'orientation cube' }],
       false,
       strings.loading,
     );
