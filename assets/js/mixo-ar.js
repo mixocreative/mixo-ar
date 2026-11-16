@@ -2,13 +2,13 @@
 // says so. The rendering itself is `core/viewer.js`, which is also what mixoweb vendors - so a
 // change to how a model is shown belongs there, and a change to what may be shown belongs here.
 
-import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111603';
-import { phaseProgress } from './core/convert/progress.js?v=2026111603';
-import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111603';
-import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111603';
-import { createPuck } from './puck/puck.js?v=2026111603';
-import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111603';
-import { listZipEntries } from './zip-entries.js?v=2026111603';
+import { mountViewer, openSheets, say } from './core/viewer.js?v=2026111604';
+import { phaseProgress } from './core/convert/progress.js?v=2026111604';
+import { convertLocalMeshToGlbUrl, modelExtensionFromName, modelKindFromName, viewableModelUrl } from './core/convert/mesh-to-glb.js?v=2026111604';
+import { enablePuckPanel, fakePuck, puckIsAvailable } from './puck-panel.js?v=2026111604';
+import { createPuck } from './puck/puck.js?v=2026111604';
+import { createWebBluetoothTransport } from './puck/transport-web-bluetooth.js?v=2026111604';
+import { listZipEntries } from './zip-entries.js?v=2026111604';
 
 const stage = typeof document === 'undefined' ? null : document.querySelector('[data-mixo-ar]');
 const LANGUAGE_STORAGE_KEY = 'mixo-ar-language';
@@ -215,7 +215,7 @@ async function start(stage) {
   showArButtonPreview(stage, strings, window.location.search);
   enablePuck(stage, state, strings, status);
 
-  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111603');
+  const { ModelViewerElement } = await import('../vendor/model-viewer/model-viewer.min.js?v=2026111604');
   const decoderBase = new URL('../vendor/model-viewer/decoders/', import.meta.url).href;
   ModelViewerElement.dracoDecoderLocation = decoderBase + 'draco/';
   ModelViewerElement.ktx2TranscoderLocation = decoderBase + 'ktx2/';
@@ -238,7 +238,7 @@ async function start(stage) {
       state,
       strings,
       status,
-      [{ url: './assets/ar/orientation-cube.glb?v=2026111603', name: 'orientation cube' }],
+      [{ url: './assets/ar/orientation-cube.glb?v=2026111604', name: 'orientation cube' }],
       false,
       strings.loading,
     );
@@ -319,7 +319,7 @@ async function enablePuck(stage, state, strings, status) {
       state,
       strings,
       status,
-      [{ url: './assets/ar/orientation-cube.glb?v=2026111603', name: 'orientation cube' }],
+      [{ url: './assets/ar/orientation-cube.glb?v=2026111604', name: 'orientation cube' }],
       false,
       strings.loading,
     );
@@ -352,6 +352,11 @@ async function enablePuck(stage, state, strings, status) {
        * Azimuth 0, polar 90: straight on, level with the model, which is the pose the orientation
        * cube's faces are authored against.
        */
+      // Belt and braces: a viewer mounted moments ago still carries `auto-rotate` from its
+      // attribute defaults, and a turntable that resumes after the camera is placed undoes the
+      // placement a frame later. Removing it here means homing the view cannot be quietly
+      // reversed by the element's own animation.
+      state.viewer.removeAttribute('auto-rotate');
       state.viewer.cameraOrbit = '0deg 90deg auto';
       state.viewer.jumpCameraToGoal?.();
 

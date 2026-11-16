@@ -20,7 +20,7 @@ import {
   orientationAttribute,
   readStatus,
   relativeTo,
-} from './puck-orientation.js?v=2026111603';
+} from './puck-orientation.js?v=2026111604';
 
 /** How long Align watches before it takes the reference, once the puck is holding still. */
 const ALIGN_SAMPLE_MS = 500;
@@ -173,13 +173,24 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
     }
 
     if (next === 'connected') {
-      // Stop the idle spin. The viewer carries `auto-rotate` so a page nobody is touching still
-      // shows the model off - but once a puck is driving the orientation, the two fight: the
-      // model keeps turning on its own AND follows the hand, and neither reads as either.
-      spin(false);
-
-      // Nothing loaded means nothing to orient, so offer the labelled cube.
+      // The viewer carries `auto-rotate` so a page nobody is touching still shows the model off -
+      // but once a puck drives the orientation the two fight: the model keeps turning on its own
+      // AND follows the hand, and neither reads as either.
+      /*
+       * ORDER MATTERS HERE and it was wrong: the cube is mounted FIRST, then the spin is stopped,
+       * then the view is homed.
+       *
+       * `spin(false)` and the camera reset both act on the viewer that exists when they run. With
+       * the mount last, they were aimed at the previous viewer - or at nothing at all on a page
+       * opened without a model - and the freshly mounted one then came up with `auto-rotate`
+       * still on, turning the camera away from square-on within a second. The zero looked wrong
+       * because the camera had already left.
+       */
       showTestCube();
+
+      // Stop the idle turntable. On a viewer mounted a moment ago this is the first thing that
+      // has ever touched it, which is the point.
+      spin(false);
 
       // And put the model back to its default angle, because whatever it was showing was either
       // the turntable's idea or the last link's. Connecting is the moment a person expects a
