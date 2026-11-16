@@ -20,7 +20,7 @@ import {
   orientationAttribute,
   readStatus,
   relativeTo,
-} from './puck-orientation.js?v=2026111612';
+} from './puck-orientation.js?v=2026111613';
 
 /** Readings are ~50-100 Hz, so half a second is tens of them; this is the floor, not the target. */
 const ALIGN_MIN_READINGS = 5;
@@ -168,8 +168,30 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
     showCard(true);
   };
 
-  /** Hand the view back: the card is the only thing that takes it away. */
+  /**
+   * Hand the view back - but NOT while a puck is driving the model.
+   *
+   * **While the link is up the camera does not move, by itself or by hand.** The whole point of
+   * Align is that the model's angle and the puck's angle mean the same thing, and `camera-controls`
+   * breaks that: model-viewer's camera carries inertia, so a stray drag or a flick keeps gliding
+   * after the finger stops and settles somewhere new. Nothing announces it. From then on the cube
+   * is read against a viewpoint that moved, every direction is off by that drag, and the puck gets
+   * the blame - which is the same failure the card's freeze exists to prevent, arriving one step
+   * later.
+   *
+   * So the camera comes back when the puck stops driving, in the `idle` and `lost` branches below,
+   * and not before. Cancelling the card while still connected leaves it frozen on purpose.
+   */
   const thawView = () => {
+    const viewer = getViewer();
+
+    if (viewer && state.link !== 'connected') {
+      viewer.setAttribute('camera-controls', '');
+    }
+  };
+
+  /** Unconditional, for the moment the puck stops driving. */
+  const releaseView = () => {
     const viewer = getViewer();
 
     if (viewer) {
@@ -195,6 +217,7 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
       state.qZero = null;
       showDefaultView();
       spin(true);
+      releaseView();
     }
 
     if (next === 'lost') {
@@ -203,6 +226,11 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
       showCard(false);
       // Deliberately NOT restarting the spin: 0009 says a lost link freezes the view. A model
       // that started turning by itself the moment the link dropped would read as "still working".
+      //
+      // The camera DOES come back, though: nothing is driving the model any more, so turning it by
+      // hand can no longer put the view out of step with the puck. Frozen and unturnable would
+      // just be a dead page.
+      releaseView();
     }
 
     if (next === 'connected') {
