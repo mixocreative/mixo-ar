@@ -20,7 +20,7 @@ import {
   orientationAttribute,
   readStatus,
   relativeTo,
-} from './puck-orientation.js?v=2026111619';
+} from './puck-orientation.js?v=2026112101';
 
 /** Readings are ~50-100 Hz, so half a second is tens of them; this is the floor, not the target. */
 const ALIGN_MIN_READINGS = 5;
@@ -152,6 +152,22 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
     }
   };
 
+  /**
+   * Keep the puck's blue LED lit while the align card waits on the person (mixospatial decision
+   * 0017), and let it go when the card closes.
+   *
+   * A courtesy, never a dependency: fire and forget, so a puck built before the opcodes (which
+   * refuses them) or a dead link cannot stop an alignment. The puck clears it by itself when the
+   * link drops, so the `idle` and `lost` branches below send nothing.
+   */
+  const holdLight = (on) => {
+    try {
+      Promise.resolve(on ? source.alignHold?.() : source.alignRelease?.()).catch(() => {});
+    } catch {
+      // Nothing to light, nothing to tell.
+    }
+  };
+
   const beginAlign = () => {
     /*
      * HOME THE MODEL BEFORE ASKING, not after.
@@ -191,6 +207,7 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
     }
 
     showCard(true);
+    holdLight(true);
   };
 
   /**
@@ -228,6 +245,7 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
     state.qZero = averageQuaternions(readings);
     state.aligning = false;
     showCard(false);
+    holdLight(false);
     thawView();
     render();
   };
@@ -497,6 +515,7 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
       cancel.addEventListener('click', () => {
         state.aligning = false;
         showCard(false);
+        holdLight(false);
         // Walking away must hand the view back too, or Close leaves a model nobody can turn.
         thawView();
       });
@@ -576,6 +595,16 @@ export function fakePuck({ interval = 50 } = {}) {
       clearInterval(timer);
       timer = null;
       emit('state', 'idle');
+    },
+    /** No LED to light; `alignHeld` is for tests and a hand check. */
+    alignHeld: false,
+    alignHold() {
+      this.alignHeld = true;
+      return Promise.resolve({ ok: true });
+    },
+    alignRelease() {
+      this.alignHeld = false;
+      return Promise.resolve({ ok: true });
     },
     /** For tests: pretend the link dropped, which must not look like a disconnect. */
     drop() {

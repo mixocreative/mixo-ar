@@ -4,7 +4,7 @@
 // extension as gaussian-splat data, which misreads an ordinary mesh. Most exporters default to
 // binary, so both encodings are read.
 
-import { maybeYield, now } from './progress.js?v=2026111619';
+import { maybeYield, now } from './progress.js?v=2026112101';
 
 /** Read the `format` line of a PLY header. */
 export function plyFormatOf(source) {
