@@ -483,6 +483,32 @@ test('dropping a file still loads it, now that drops read folders too', async ()
   await page.close();
 });
 
+test('an alignment nobody answers cancels itself after two minutes, and lets the puck go', async () => {
+  // Nothing may hang: the card freezes the model and the puck holds its blue LED on while it waits
+  // (mixospatial decision 0017), so a person who walks away must not leave either stuck. A fake clock,
+  // because the real wait is two minutes.
+  const page = await browser.newPage();
+
+  await page.clock.install();
+  await page.goto(`${origin}/index.html?puck=fake&model=./assets/ar/fallback.glb`, { waitUntil: 'load' });
+  await page.waitForFunction(() => document.querySelector('model-viewer')?.loaded === true, null, { timeout: 30000 });
+  await page.waitForSelector('[data-puck-control]:not([hidden])');
+  await page.click('[data-puck-toggle]');
+  await page.click('[data-puck-connect]');
+  await page.waitForSelector('[data-align-card]:not([hidden])', { timeout: 10000 });
+
+  assert.equal(await page.evaluate(() => window.__fakePuck.alignHeld), true, 'the puck was not asked to hold its LED');
+
+  await page.clock.fastForward(119000);
+  assert.equal(await page.isVisible('[data-align-card]'), true, 'it gave up before two minutes');
+
+  await page.clock.fastForward(2000);
+  await page.waitForSelector('[data-align-card]', { state: 'hidden', timeout: 5000 });
+
+  assert.equal(await page.evaluate(() => window.__fakePuck.alignHeld), false, 'the puck was left holding its LED');
+  await page.close();
+});
+
 test('the puck drives the model, and the two ways of stopping differ', async () => {
   // Decision 0009: a deliberate Disconnect returns the view to default, because pressing it means
   // "I am finished". An unintended link loss freezes it instead and says so - an interruption is

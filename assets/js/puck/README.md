@@ -11,7 +11,7 @@ differently in this page than in its own harness.
 | `puck.js` | the link state machine, bounded reconnection, and the one command the device has |
 | `transport-web-bluetooth.js` | `navigator.bluetooth` in, byte arrays out |
 
-Ticket at vendoring time: `2026112101`. Vendored at mixospatial `0a75306`, 2026-11-21 (adds
+Ticket at vendoring time: `2026112102`. Vendored at mixospatial `0a75306`, 2026-11-21 (adds
 `alignHold` / `alignRelease`, mixospatial decision 0017).
 
 **One modification is made on the way in, and only one:** every relative import gets the page's

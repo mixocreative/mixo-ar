@@ -20,10 +20,18 @@ import {
   orientationAttribute,
   readStatus,
   relativeTo,
-} from './puck-orientation.js?v=2026112101';
+} from './puck-orientation.js?v=2026112102';
 
 /** Readings are ~50-100 Hz, so half a second is tens of them; this is the floor, not the target. */
 const ALIGN_MIN_READINGS = 5;
+
+/*
+ * An alignment nobody answers cancels itself. The card freezes the model and the puck holds its blue
+ * LED on while it waits (mixospatial decision 0017), so a person who walks away would otherwise leave
+ * both stuck. The puck has the same two minutes on its side (PUCK_ALIGN_HOLD_MAX_MS), so neither end
+ * depends on the other to let go.
+ */
+const ALIGN_TIMEOUT_MS = 120000;
 
 export async function puckIsAvailable(bluetooth) {
   if (!bluetooth) {
@@ -168,6 +176,32 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
     }
   };
 
+  let alignTimer = null;
+
+  const disarmAlignTimeout = () => {
+    clearTimeout(alignTimer);
+    alignTimer = null;
+  };
+
+  /** Walk away from the card, by hand or by the clock. Hands the view back too. */
+  const cancelAlign = () => {
+    disarmAlignTimeout();
+    state.aligning = false;
+    showCard(false);
+    holdLight(false);
+    // Walking away must hand the view back too, or Close leaves a model nobody can turn.
+    thawView();
+  };
+
+  const armAlignTimeout = () => {
+    disarmAlignTimeout();
+    alignTimer = setTimeout(() => {
+      if (state.aligning) {
+        cancelAlign();
+      }
+    }, ALIGN_TIMEOUT_MS);
+  };
+
   const beginAlign = () => {
     /*
      * HOME THE MODEL BEFORE ASKING, not after.
@@ -208,6 +242,7 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
 
     showCard(true);
     holdLight(true);
+    armAlignTimeout();
   };
 
   /**
@@ -242,6 +277,7 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
   };
 
   const finishAlign = (readings) => {
+    disarmAlignTimeout();
     state.qZero = averageQuaternions(readings);
     state.aligning = false;
     showCard(false);
@@ -257,6 +293,9 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
 
     if (next === 'idle' && wasConnected) {
       // Deliberate: the person said they were finished (0009).
+      disarmAlignTimeout();
+      state.aligning = false;
+      showCard(false);
       state.qZero = null;
       showDefaultView();
       spin(true);
@@ -265,6 +304,8 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
 
     if (next === 'lost') {
       // Not deliberate: the view stays exactly where their hand left it, and the panel says why.
+      // The puck has already let go of its LED on its own when the link dropped.
+      disarmAlignTimeout();
       state.aligning = false;
       showCard(false);
       // Deliberately NOT restarting the spin: 0009 says a lost link freezes the view. A model
@@ -512,13 +553,7 @@ export function enablePuckPanel({ control, strings, source, getViewer, showDefau
     const cancel = card.querySelector('[data-align-cancel]');
 
     if (cancel) {
-      cancel.addEventListener('click', () => {
-        state.aligning = false;
-        showCard(false);
-        holdLight(false);
-        // Walking away must hand the view back too, or Close leaves a model nobody can turn.
-        thawView();
-      });
+      cancel.addEventListener('click', cancelAlign);
     }
   }
 
